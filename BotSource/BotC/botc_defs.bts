@@ -1,0 +1,200 @@
+#!botc 1.0
+
+// This file defines the functions and events for botc
+// Do not edit unless you know what you are doing!
+
+// =============================================================================
+//
+// Function definitions
+// Syntax: funcdef <return> <num>:<name> (<args>)
+//
+funcdef void	0:changestate (int newstate);
+funcdef void	1:delay (int tics);
+funcdef int		2:random (int a, int b);
+funcdef int		3:StringsAreEqual (str string1, str string2);
+funcdef int		4:LookForPowerups (int start, bool visibilitycheck);
+funcdef int		5:LookForWeapons (int start, bool visibilitycheck);
+funcdef int		6:LookForAmmo (int start, bool visibilitycheck);
+funcdef int		7:LookForBaseHealth (int start, bool visibilitycheck);
+funcdef int		8:LookForBaseArmor (int start, bool visibilitycheck);
+funcdef int		9:LookForSuperHealth (int start, bool visibilitycheck);
+funcdef int		10:LookForSuperArmor (int start, bool visibilitycheck);
+funcdef int		11:LookForPlayerEnemies (int start);
+funcdef int		12:GetClosestPlayerEnemy();
+funcdef void	13:MoveLeft (int speed);
+funcdef void	14:MoveRight (int speed);
+funcdef void	15:MoveForward (int speed);
+funcdef void	16:MoveBackwards (int speed);
+funcdef void	17:StopMovement();
+funcdef void	18:StopForwardMovement();
+funcdef void	19:StopSidewaysMovement();
+funcdef int		20:CheckTerrain (int distance, int angle);
+funcdef int		21:PathToGoal (int speed);
+funcdef int		22:PathToLastKnownEnemyPosition (int speed);
+funcdef int		23:PathToLastHeardSound (int speed);
+funcdef int		24:Roam (int speed);
+funcdef int		25:GetPathingCostToItem (int item);
+funcdef int		26:GetDistanceToItem (int item);
+funcdef str		27:GetItemName (int item);
+funcdef int	28:IsItemVisible (int item);
+funcdef void	29:SetGoal (int item);
+funcdef void	30:BeginAimingAtEnemy();
+funcdef void	31:StopAimingAtEnemy();
+funcdef void	32:Turn (int turnangle);
+funcdef int		33:GetCurrentAngle();
+funcdef void	34:SetEnemy (int player);
+funcdef void	35:ClearEnemy();
+funcdef int		36:IsEnemyAlive();
+funcdef int		37:IsEnemyVisible();
+funcdef int		38:GetDistanceToEnemy();
+funcdef int		39:GetPlayerDamagedBy();
+funcdef int		40:GetEnemyInvulnerabilityTicks();
+funcdef void	41:FireWeapon();
+funcdef void	42:BeginFiringWeapon();
+funcdef void	43:StopFiringWeapon();
+funcdef str		44:GetCurrentWeapon();
+funcdef void	45:ChangeWeapon (str weapon);
+funcdef str		46:GetWeaponFromItem (int item);
+funcdef int		47:IsWeaponOwned (int item);
+funcdef int		48:IsFavoriteWeapon (str weapon);
+funcdef void	49:Say (str message);
+funcdef void	50:SayFromFile (str filename, str section);
+funcdef void	51:SayFromChatFile (str section);
+funcdef void	52:BeginChatting();
+funcdef void	53:StopChatting();
+funcdef int		54:ChatSectionExists (str section);
+funcdef int		55:ChatSectionExistsInFile (str filename, str section);
+funcdef str		56:GetLastChatString();
+funcdef str		57:GetLastChatPlayer();
+funcdef int		58:GetChatFrequency();
+funcdef void	59:Jump();
+funcdef void	60:BeginJumping();
+funcdef void	61:StopJumping();
+funcdef void	62:Taunt();
+funcdef void	63:Respawn();
+funcdef void	64:TryToJoinGame();
+funcdef int		65:IsDead();
+funcdef int		66:IsSpectating();
+funcdef int		67:GetHealth();
+funcdef int		68:GetArmor();
+funcdef int		69:GetBaseHealth();
+funcdef int		70:GetBaseArmor();
+funcdef int		71:GetBotskill();
+funcdef int		72:GetAccuracy();
+funcdef int		73:GetIntellect();
+funcdef int		74:GetAnticipation();
+funcdef int		75:GetEvade();
+funcdef int		76:GetReactionTime();
+funcdef int		77:GetPerception();
+funcdef void	78:SetSkillIncrease (bool increase);
+funcdef int		79:IsSkillIncreased();
+funcdef void	80:SetSkillDecrease (bool decrease);
+funcdef int		81:IsSkillDecreased();
+funcdef int		82:GetGameMode();
+funcdef int		83:GetSpread();
+funcdef str		84:GetLastJoinedPlayer();
+funcdef str		85:GetPlayerName (int player);
+funcdef int		86:GetReceivedMedal();
+funcdef void	87:ACS_Execute (int script, int map = 0, int arg0 = 0, int arg1 = 0, int arg2 = 0);
+funcdef str		88:GetFavoriteWeapon();
+funcdef void	89:SayFromLump (str lump, str section);
+funcdef void	90:SayFromChatLump (str section);
+funcdef int		91:ChatSectionExistsInLump (str lump, str section);
+funcdef int		92:ChatSectionExistsInChatLump (str section);
+funcdef int		93:ACS_ExecuteWithResult (int script, int arg0 = 0, int arg1 = 0, int arg2 = 0, int arg3 = 0);
+funcdef void	94:BeginAltFiringWeapon();
+funcdef void	95:StopAltFiringWeapon();
+funcdef void	96:BeginCrouching();
+funcdef void	97:StopCrouching();
+funcdef void	98:BeginReloading();
+funcdef void	99:StopReloading();
+funcdef void	100:BeginZooming();
+funcdef void	101:StopZooming();
+funcdef void	102:BeginUser(int num = 0);
+funcdef void	103:StopUser(int num = 0);
+funcdef void	104:BeginSpeed();
+funcdef void	105:StopSpeed();
+funcdef void	106:PressUse();
+funcdef int		107:ACS_NamedExecuteWithResult (str script, int arg0 = 0, int arg1 = 0, int arg2 = 0, int arg3 = 0);
+funcdef void	108:BeginMoveUp();
+funcdef void	109:StopMoveUp();
+funcdef void	110:BeginMoveDown();
+funcdef void	111:StopMoveDown();
+
+// =============================================================================
+//
+// Builtin function definitions
+// Syntax: funcdef <return> <num>:<name> (<args>)
+//
+builtindef void 70:ArraySet (int array, int value, int numBytes);
+
+// =============================================================================
+//
+// Events:
+// eventdef <number>:<name>();
+//
+eventdef 0:KilledByEnemy();
+eventdef 1:KilledByPlayer();
+eventdef 2:KilledBySelf();
+eventdef 3:KilledByEnvironment();
+eventdef 4:ReachedGoal();
+eventdef 5:GoalRemoved();
+eventdef 6:DamagedByPlayer();
+eventdef 7:PlayerSay();
+eventdef 8:EnemyKilled();
+eventdef 9:Respawned();
+eventdef 10:Intermission();
+eventdef 11:NewMap();
+eventdef 12:EnemyUsedFist();
+eventdef 13:EnemyUsedChainsaw();
+eventdef 14:EnemyFiredPistol();
+eventdef 15:EnemyFiredShotgun();
+eventdef 16:EnemyFiredSSG();
+eventdef 17:EnemyFiredChaingun();
+eventdef 18:EnemyFiredMinigun();
+eventdef 19:EnemyFiredRocket();
+eventdef 20:EnemyFiredGrenade();
+eventdef 21:EnemyFiredRailgun();
+eventdef 22:EnemyFiredPlasma();
+eventdef 23:EnemyFiredBFG();
+eventdef 24:EnemyFiredBFG10k();
+eventdef 25:PlayerUsedFist();
+eventdef 26:PlayerUsedChainsaw();
+eventdef 27:PlayerFiredPistol();
+eventdef 28:PlayerFiredShotgun();
+eventdef 29:PlayerFiredSSG();
+eventdef 30:PlayerFiredChaingun();
+eventdef 31:PlayerFiredMinigun();
+eventdef 32:PlayerFiredRocket();
+eventdef 33:PlayerFiredGrenade();
+eventdef 34:PlayerFiredRailgun();
+eventdef 35:PlayerFiredPlasma();
+eventdef 36:PlayerFiredBFG();
+eventdef 37:PlayerFiredBFG10k();
+eventdef 38:UsedFist();
+eventdef 39:UsedChainsaw();
+eventdef 40:FiredPistol();
+eventdef 41:FiredShotgun();
+eventdef 42:FiredSSG();
+eventdef 43:FiredChaingun();
+eventdef 44:FiredMinigun();
+eventdef 45:FiredRocket();
+eventdef 46:FiredGrenade();
+eventdef 47:FiredRailgun();
+eventdef 48:FiredPlasma();
+eventdef 49:FiredBFG();
+eventdef 50:FiredBFG10k();
+eventdef 51:PlayerJoinedGame();
+eventdef 52:JoinedGame();
+eventdef 53:DuelStartingCountdown();
+eventdef 54:DuelFight();
+eventdef 55:DuelWinSequence();
+eventdef 56:Spectating();
+eventdef 57:LMSStartingCountdown();
+eventdef 58:LMSFight();
+eventdef 59:LMSWinSequence();
+eventdef 60:WeaponChange();
+eventdef 61:EnemyBFGExplode();
+eventdef 62:PlayerBFGExplode();
+eventdef 63:BFGExplode();
+eventdef 64:ReceivedMedal();

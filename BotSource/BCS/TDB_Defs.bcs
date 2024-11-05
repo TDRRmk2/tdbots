@@ -1,0 +1,223 @@
+#define selfExDat TDBot_ExData[PlayerNumber()]
+#define selfInput TDBot_Inputs[PlayerNumber()];
+#define TDB_HasTargetNode(s) (s.goalNode && CheckActorInventory(s.goalNode, "TDBots_IDoExist"))
+#define AngleDiff(src,dst) ((fixed)((((raw)(dst) - (raw)(src)) + 1.5) % 1.0 - 0.5))
+#define self TDBotInfo[PlayerNumber()]
+
+#ifdef DEBUG_MODE
+	#define DPrintf printf
+	#define DPrintBoldf printboldf
+	#define DLogf logf
+#else
+	#define DPrintf(...)
+	#define DPrintBoldf(...)
+	#define DLogf(...)
+#endif
+
+//Constants
+enum : int {MAX_PLAYERS = 64};
+enum : int
+{
+	MAX_NODES = 512,
+	MAX_PROPS = 4,
+	MAX_FOLLOW_NODES = 16
+};
+
+enum
+{  
+	AXIS_X,
+	AXIS_Y,
+	AXIS_Z,
+	NODE_TYPE
+};
+
+enum
+{
+	NODE_NORMAL,
+	NODE_JUMP,
+	NODE_PRECISE
+};
+
+//Macros
+#define DecoAction(n) GiveInventory(n, 1)
+
+//Shorthand specials
+#define CallACS ACS_NamedExecuteWithResult
+#define frandom(a,b) ((fixed)random((int)a, (int)b))
+/*raw CallACS (str scriptName, raw arg1 = 0, raw arg2 = 0, raw arg3 = 0, raw arg4 = 0)
+{
+	return ACS_NamedExecuteWithResult(scriptName, arg1, arg2, arg3 ,arg4);
+}*/
+
+global gameT 43:currentGame;
+global bool 44:hasWarnedODM;
+#ifndef QCDE_BOT
+bool canQuickswitch;
+#else
+bool canQuickswitch = true;
+#endif
+bool neverWeaponize;
+
+struct
+{
+	int lessFOV;
+} TDB_Difficulty;
+
+struct HeapArrayT
+{
+	bool init;
+	int size, curr, growSize;
+	ptrT ptr;
+};
+
+int r1, r2;
+
+#define HeapArrayT_Init(name, s) {_##name.init = true; _##name.ptr = malloc(s); _##name.size = s;}
+
+#define HeapArrayT_Set_Defn(type, name, growSize) \
+void name##_Set (int idx, type val) \
+{ \
+	if(!_##name.init) \
+		HeapArrayT_Init(name, growSize); \
+ \
+	if( (idx > 0) && (idx < _##name.size) ) \
+		zm[ _##name.ptr + idx] = val; \
+}
+
+#define HeapArrayT_Get_Defn(type, name, growSize) \
+type name##_Get (int idx) \
+{ \
+	return zm[ _##name.ptr + idx ]; \
+}
+
+#define HeapArrayT_Append_Defn(type, name, growSize) \
+void name##_Append (type val) \
+{ \
+	if(!_##name.init) \
+		HeapArrayT_Init(name, growSize); \
+ \
+	if(_##name.curr > _##name.size) \
+	{ \
+		int newSize = _##name.size + growSize; \
+		_##name.ptr = realloc(_##name.ptr, newSize); \
+		_##name.size = newSize; \
+	} \
+	zm[ _##name.ptr + _##name.curr ] = val; \
+	_##name.curr++; \
+}
+
+#define HeapArrayT_Size_Defn(type, name, growSize) \
+int name##_Size () \
+{ \
+	return _##name.size; \
+}
+
+#define HeapArrayT_Curr_Defn(type, name, growSize) \
+int name##_Curr () \
+{ \
+	return _##name.curr; \
+}
+
+#define HeapArrayT_Defn(type, name, growSize) \
+HeapArrayT_Size_Defn(type, name, growSize) \
+HeapArrayT_Curr_Defn(type, name, growSize) \
+HeapArrayT_Get_Defn(type, name, growSize) \
+HeapArrayT_Set_Defn(type, name, growSize) \
+HeapArrayT_Append_Defn(type, name, growSize) \
+private HeapArrayT _##name
+
+enum gameT
+{
+	GAME_UNSET = 0,
+	GAME_DOOM,
+	GAME_HERETIC,
+	GAME_HEXEN,
+	GAME_STRIFE
+};
+
+str TDB_NodeActors[] =
+{
+	"TDBots_PathNode",
+	"TDBots_JumpNode",
+	"TDBots_PrecisionNode",
+	"TDBots_LiftNode",
+	"TDBots_BigPathNode"
+};
+
+struct TDB_InfoT
+{
+	int state, flags;
+	int lastTargetPlayer;
+	str className;
+	str weaponName;
+	int weaponFlags;
+	str firstWeapon;
+	
+	fixed oldX, oldY;
+	
+	fixed posDiff;
+	int stuckTimer;
+	int noNodeWait;
+	int goalNode;
+	
+	fixed oldVelZ;
+	
+	bool LOFResult;
+	
+	int misc1, misc2;
+
+	int fwmove,
+		sdmove,
+		buttons;
+
+	int lastAttackBtn;
+
+	bool initSkills;
+	fixed inaccuracy;
+	int reactTime, atkTimer, nonEvadeChance, intellect, perception;
+
+} TDBotInfo[MAX_PLAYERS], EmptyBotInfo;
+
+enum
+{
+	TDB_CW_MELEE = 1 << 0,
+	TDB_CW_EXPLOSIVE = 1 << 1,
+	TDB_CW_PROJECTILE = 1 << 2
+};
+
+enum
+{
+	TDB_STATE_ROAM,
+	TDB_STATE_ATTACK,
+	TDB_STATE_JUMP,
+	TDB_NUMSTATES
+};
+
+enum
+{
+	TDB_FLAGS_WAIT = 1,
+	TDB_FLAGS_PREC = 1 << 1,
+	TDB_FLAGS_NOJUMPNODE = 1 << 2,
+	TDB_FLAGS_NOMOVE = 1 << 3
+};
+
+private struct TDBStateT
+{
+	int function(bool)? func;
+	int delayTime;
+} TDBot_States[TDB_NUMSTATES];
+
+Script "TDBots_InitializeBotStates" OPEN
+{
+	//static initialization can't be used, as it breaks references on map arrays
+	//also, rip, you can't use brackets to fill out the struct in one go :(
+	int i;
+	TDBot_States[i].func = TDBot_StateRoam;
+	TDBot_States[i++].delayTime = 3;
+	
+	TDBot_States[i].func = TDBot_StateAttack;
+	TDBot_States[i++].delayTime = 2;
+	
+	TDBot_States[i].func = TDBot_StateJump;
+	TDBot_States[i++].delayTime = 1;
+}

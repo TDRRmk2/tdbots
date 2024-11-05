@@ -1,0 +1,423 @@
+
+//TDBots MK2: The faster-performing bots
+//
+//(C) 2022 Moises Aguirre / TDRR
+//
+//Licensed under the MIT license
+
+
+
+enum
+{
+	TDB_Touch_Node = 32512
+};
+
+enum
+{
+	TDB_PATH_NODE,
+	TDB_JUMP_NODE,
+	TDB_PREC_NODE,
+	TDB_LIFT_NODE,
+	TDB_BIG_NODE,
+	TDB_ITEM_NODE
+};
+ // shared between DECORATE and BCS
+Actor BotAttack : Inventory {}
+Actor BotAltAttack : Inventory {}
+Actor BotExplosiveWeapon : Inventory {}
+Actor BotMeleeWeapon : Inventory {}
+Actor BotForceInacc : Inventory {}
+Actor BotCloseRange : Inventory {}
+Actor BotCurrentOrder : Inventory {} //0 = roam, 1 = hold position
+
+Actor TDBot_TryingToTeleport : Inventory {}
+
+Actor TDBots_IsBot : Inventory {}
+Actor TDBots_IDoExist : Inventory {}
+
+ACTOR TDBots_NodeGetSpecial : CustomInventory
+{
+	+INVENTORY.AUTOACTIVATE
+	States
+	{
+	Use:
+		TNT1 A 0 ACS_NamedExecuteWithResult("TDBots_NodeGetSpecial", special)
+		Stop
+	}
+}
+
+ACTOR TDBots_PathNode_Map 2401
+{
+	//$Title Path node
+	//$Category TDBots
+	//$NotAngled
+	//$Color 13
+	
+	+INVISIBLE
+	+NOBLOCKMAP
+	+NOINTERACTION
+	RenderStyle None
+
+	Gravity 0.0
+	Radius 16
+	Height 32
+	States
+	{
+	Spawn:
+		TBND B 2 NoDelay A_SpawnItemEx("TDBots_PathNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+ACTOR TDBots_JumpNode_Map : TDBots_PathNode_Map 2402
+{
+	//$Title Jump node
+	//$Category TDBots
+	//$Arg0 Add. speed
+	//$Arg1 Always jump
+	//$Angled
+	//$Color 10
+	
+	States
+	{
+	Spawn:
+		TBND C 2 NoDelay A_SpawnItemEx("TDBots_JumpNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+ACTOR TDBots_PrecisionNode_Map : TDBots_PathNode_Map 2403
+{
+	//$Title Precision node
+	//$Category TDBots
+	//$NotAngled
+	//$Color 4
+	
+	States
+	{
+	Spawn:
+		TBND D 2 NoDelay A_SpawnItemEx("TDBots_PrecisionNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+ACTOR TDBots_LiftNode_Map : TDBots_PathNode_Map 2404
+{
+	//$Title Lift node
+	//$Category TDBots
+	//$Angled
+	//$Color 7
+	
+	States
+	{
+	Spawn:
+		TBND Z 2 NoDelay A_SpawnItemEx("TDBots_LiftNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+ACTOR TDBots_PathNode_Map_NG : TDBots_PathNode_Map 2405
+{
+	//$Title Path node (No Gravity)
+	//$Category TDBots
+	//$NotAngled
+	//$Color 13
+
+	+AMBUSH
+	States
+	{
+	Spawn:
+		TBND B 2 NoDelay A_SpawnItemEx("TDBots_PathNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+ACTOR TDBots_BigPathNode_Map 2406
+{
+	//$Title Path node (big)
+	//$Category TDBots
+	//$NotAngled
+	//$Color 13
+
+	Scale 2.0
+	Radius 40
+	Height 64
+	States
+	{
+	Spawn:
+		TBND B 2 NoDelay A_SpawnItemEx("TDBots_BigPathNode", 0, 0, 0, 0, 0, 0, 0, SXF_NOCHECKPOSITION|SXF_TRANSFERSPECIAL|SXF_TRANSFERAMBUSHFLAG)
+		Stop
+	}
+}
+
+/*==============================================================================
+
+		Normal Path Node, does nothing special to the bot following it
+	
+==============================================================================*/
+ACTOR TDBots_PathNode : Inventory
+{
+	RenderStyle None
+	+INVENTORY.AUTOACTIVATE
+	+INVENTORY.NOSCREENFLASH
+	+INVENTORY.NEVERRESPAWN
+	Inventory.MaxAmount 1
+	Inventory.PickupMessage ""
+	Inventory.PickupSound ""
+	Scale 3.0
+	Radius 16
+	Height 32
+	
+	Accuracy 0
+	Tag "Path"
+	states
+	{
+	Spawn:
+		TBND B 0
+		TBND B -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_PATH_NODE)
+		Stop
+	}
+}
+
+/*==============================================================================
+
+		Jump Node, makes the bot jump in the direction it was moving
+		when touching it.
+	
+==============================================================================*/
+ACTOR TDBots_JumpNode : TDBots_PathNode
+{
+	Accuracy 1
+	Tag "Jump"
+	states
+	{
+	Spawn:
+		TBND C 0
+		TBND C -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_JUMP_NODE, args[0], args[1])
+		Stop
+	}
+}
+
+/*==============================================================================
+
+		Precision Node, once touched, makes the bot completely stop
+		dodging attacks when in attacking state, to avoid falling down
+		accidentally.
+	
+==============================================================================*/
+ACTOR TDBots_PrecisionNode : TDBots_PathNode
+{
+	Accuracy 2
+	Tag "Prec"
+	states
+	{
+	Spawn:
+		TBND D 0
+		TBND D -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_PREC_NODE)
+		Stop
+	}
+}
+
+/*==============================================================================
+
+		Lift Node, once touched, makes the bot stand still, waiting for
+		the tag set as it's TID.
+	
+==============================================================================*/
+ACTOR TDBots_LiftNode : TDBots_PathNode
+{
+	Accuracy 3
+	Tag "Lift"
+	states
+	{
+	Spawn:
+		TBND Z 0
+		TBND Z -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_LIFT_NODE)
+		Stop
+	}
+}
+
+/*==============================================================================
+
+		Normal Path Node, extra big edition
+	
+==============================================================================*/
+ACTOR TDBots_BigPathNode : TDBots_PathNode
+{
+	Accuracy 4
+	Tag "Big"
+
+	Radius 40
+	Height 64
+	states
+	{
+	Spawn:
+		TBND C 0
+		TBND C -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_BIG_NODE)
+		Stop
+	}
+}
+
+ACTOR TDBots_TempNode : TDBots_PathNode
+{
+	states
+	{
+	Spawn:
+		TNT1 A 175
+		Stop
+	}
+}
+
+Actor TDBot_BaseAction : CustomInventory {+INVENTORY.AUTOACTIVATE}
+
+Actor TDBot_Look : TDBot_BaseAction
+{
+	states
+	{
+	Use:
+		TNT1 A 0 A_LookEx(0, 0, 0, 0, Accuracy, "")
+		Stop
+	}
+}
+
+Actor TDBot_ClearTarget : TDBot_BaseAction
+{
+	states
+	{
+	Use:
+		TNT1 A 0 A_ClearTarget
+		Stop
+	}
+}
+
+Actor TDBot_RailVisual : TDBot_BaseAction
+{
+	states
+	{
+	Use:
+		TNT1 A 0 A_CustomRailgun(0, 0, None, "FloralWhite", RGF_SILENT|RGF_FULLBRIGHT|RGF_CENTERZ|RGF_NORANDOMPUFFZ, 1, 0, "TDBot_InvisiblePuff", 0, 0, Accuracy, 4, 1.0, 0.0)
+		Stop
+	}
+}
+
+/*=================================================================
+
+		Order stuff
+
+=================================================================*/
+Actor TDBot_ToggleOrder : CustomInventory
+{
+	-INVBAR
+	+INVENTORY.INTERHUBSTRIP
+	states
+	{
+	Use:
+		TNT1 A 0 A_TakeInventory("TDBot_GiveOrderPrint")
+		TNT1 A 0 A_FireBullets(0, 0, 1, 0, "TDBot_OrderPuff", FBF_NORANDOM|FBF_NOFLASH)
+		Fail
+	}
+}
+
+Actor TDBot_InvisiblePuff
+{
+	+INVISIBLE
+	+PAINLESS
+	+BLOODLESSIMPACT
+	+NOINTERACTION
+	states
+	{
+	Spawn:
+		TNT1 A 2
+		Stop
+	}
+}
+
+Actor TDBot_OrderPuff : TDBot_InvisiblePuff
+{
+	+HITTRACER
+	+PUFFGETSOWNER
+	+PUFFONACTORS
+	states
+	{
+	Spawn:
+	Melee:
+		TNT1 A 0 NoDelay A_GiveInventory("TDBot_ActualOrderChange", 1, AAPTR_TRACER)
+		TNT1 A 0 A_GiveInventory("TDBot_GiveOrderPrint", 1, AAPTR_TARGET)
+		Goto Null
+	
+	Crash:
+		Goto Null
+	}
+}
+
+Actor TDBot_GiveOrderPrint : TDBot_BaseAction
+{
+	+CLIENTSIDEONLY
+	states
+	{
+	Use:
+		TNT1 A 0 A_Print("Order given.")
+		Stop
+	}
+}
+
+Actor TDBot_ActualOrderChange : TDBot_BaseAction
+{
+	+INVENTORY.AUTOACTIVATE
+	states
+	{
+	Use:
+		TNT1 A 0 A_JumpIfInventory("BotCurrentOrder", 1, "DisableOrder")
+		TNT1 A 0 A_GiveInventory("BotCurrentOrder")
+		Stop
+	
+	DisableOrder:
+		TNT1 A 0 A_TakeInventory("BotCurrentOrder")
+		Stop
+	}
+}
+
+Actor BA_CheckGround
+{
+	Radius 1
+	Height 1
+	+NOINTERACTION
+	+NOBLOCKMAP
+	+INVISIBLE
+}
+
+Actor TDBot_WallChecker
+{
+	+SERVERSIDEONLY
+	+NOBLOCKMAP
+	+THRUACTORS
+	+INVISIBLE
+	-SOLID
+	
+	Radius 20
+	Height 4
+}
+
+Actor TDB_ReturnArgs : CustomInventory
+{
+	+INVENTORY.AUTOACTIVATE
+	states
+	{
+	Use:
+		TNT1 A 0 ACS_NamedExecuteWithResult("_TDB_ReturnArgs_Set1", args[0], args[1], args[2], args[3])
+		TNT1 A 0 ACS_NamedExecuteWithResult("_TDB_ReturnArgs_Set2", args[4], special)
+		Stop
+	}
+}
+
+Actor TDB_CAF_NOGRAVITY : CustomInventory
+{
+	+INVENTORY.AUTOACTIVATE
+	states
+	{
+	Use:
+		TNT1 A 0 A_ChangeFlag("NOGRAVITY", Accuracy)
+		Stop
+	}
+}
+

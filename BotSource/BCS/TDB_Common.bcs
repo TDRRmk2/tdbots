@@ -1,0 +1,496 @@
+#ifdef DEBUG_MODE
+	#define PRINT_STATENAME if(justEntered) \
+		logf("%n: %s", 0, __FUNCTION__)
+#else
+	#define PRINT_STATENAME ;
+#endif
+
+raw abs (raw x)
+{
+	if(x < 0)
+		return -x;
+	return x;
+}
+
+void TDB_NewTempTID()
+{
+	r1 = UniqueTID();
+	r2 = ActivatorTID();
+	Thing_ChangeTID(0, r1);
+	return;
+}
+
+void TDB_BotLook (int fov)
+{
+	int oldAccuracy = GetActorProperty(0, APROP_Accuracy);
+	SetActorProperty(0, APROP_Accuracy, fov);
+	DecoAction("TDBot_Look");
+	SetActorProperty(0, APROP_Accuracy, oldAccuracy);
+}
+
+void TDB_SetActorFlag (int tid, str flag, bool e)
+{
+	int oldAccuracy = GetActorProperty(tid, APROP_Accuracy);
+	SetActorProperty(tid, APROP_Accuracy, e);
+	if(tid)
+		GiveActorInventory(tid, StrParam(s:"TDB_CAF_", s:flag), 1);
+	else
+		GiveInventory(StrParam(s:"TDB_CAF_", s:flag), 1);
+	SetActorProperty(tid, APROP_Accuracy, oldAccuracy);
+}
+
+int DecReturn[6];
+void TDB_CallDecorate (int tid, str name, int arg1 = 0, int arg2 = 0, int arg3 = 0, int arg4 = 0, int arg5 = 0, int arg6 = 0)
+{
+	static int tmpArgs[6];
+
+	if(tid)
+		GiveActorInventory(tid, "TDB_ReturnArgs", 1);
+	else
+		GiveInventory("TDB_ReturnArgs", 1);
+
+	memcpy(tmpArgs, DecReturn);
+
+	if(tid)
+		GiveActorInventory(tid, name, 1);
+	else
+		GiveInventory(name, 1);
+
+	SetThingSpecial(tid, tmpArgs[5], tmpArgs[0], tmpArgs[1], tmpArgs[2], tmpArgs[3], tmpArgs[4]);
+}
+
+Script "_TDB_ReturnArgs_Set1" (int arg1, int arg2, int arg3, int arg4)
+{
+	DecReturn[0] = arg1;
+	DecReturn[1] = arg2;
+	DecReturn[2] = arg3;
+	DecReturn[3] = arg4;
+}
+
+Script "_TDB_ReturnArgs_Set2" (int arg5, int spec)
+{
+	DecReturn[4] = arg5;
+	DecReturn[5] = spec;
+}
+
+Script "TDBot_TargetIsNode"
+{
+	if(!SetActivator(0, AAPTR_TARGET))
+	{
+		SetResultValue(0);
+		terminate;
+	}
+
+	SetResultValue(CheckInventory("TDBots_IDoExist"));
+}
+
+Script "TDBot_CheckPointer" (int ptr)
+{
+	SetResultValue((int)SetActivator(0, ptr));
+}
+
+Script "TDBot_IsTargetAlive"
+{
+	if(!SetActivator(0, AAPTR_TARGET))
+	{
+		SetResultValue(0);
+		terminate;
+	}
+	
+	SetResultValue((int)((GetActorProperty(0, APROP_HEALTH) > 0) && !PlayerIsSpectator(PlayerNumber())));
+	if(CheckInventory("TDBots_IDoExist"))
+		SetResultValue(0);
+}
+
+Script "TDBot_TargetIsShootable"
+{
+	if(!SetActivator(0, AAPTR_TARGET))
+	{
+		SetResultValue(0);
+		terminate;
+	}
+
+	SetResultValue((int)CheckFlag(0, "SHOOTABLE"));
+}
+
+Script "TDBot_GetDistToTarget"
+{
+	fixed x = GetActorX(0);
+	fixed y = GetActorY(0);
+	
+	SetActivator(0, AAPTR_TARGET);
+	
+	SetResultValue(VectorLength(GetActorX(0) - x, GetActorY(0) - y));
+}
+
+bool LOFResult;
+Script "TDBot_SetLOFResult"
+{
+	LOFResult = TRUE;
+	delay(1);
+	LOFResult = FALSE;
+}
+
+fixed fmod(fixed a, fixed b)
+{
+	if (a < 0.0)
+	{
+		fixed rem = a % (raw)b;
+		if (rem != 0.0)
+			return b + (a % (raw)b);
+		return 0.0;
+	}
+
+	return a % (raw)b;
+}
+
+fixed TDB_GetSpeed ()
+{
+	fixed spd = fixed((int)GetActorProperty(0, APROP_ACCURACY));
+	
+	if(spd == 0.0)
+		return 17.0;
+	return spd;
+}
+
+bool TDB_ActorExists (str actor)
+{
+	int TID = UniqueTID();
+	if(!SpawnForced(actor, 0.0, 0.0, 0.0, TID))
+		return FALSE;
+		
+	Thing_Remove(TID);
+	return TRUE;
+}
+
+function bool KeyPressed(int key)
+{
+	int buttons     = GetPlayerInput(-1, INPUT_BUTTONS);
+	int oldbuttons  = GetPlayerInput(-1, INPUT_OLDBUTTONS);
+	int newbuttons  = (buttons ^ oldbuttons) & buttons;
+
+	if ((newbuttons & key) == key) { return true; }
+		return false;
+}
+
+int TDB_CheckWall (fixed dist = 8.0, bool checkJump = TRUE)
+{
+	fixed angle = GetActorAngle(0);
+	
+	dist += GetActorProperty(0, APROP_RADIUS);
+	
+	fixed x = GetActorX(0) + (dist * cos(angle));
+	fixed y = GetActorY(0) + (dist * sin(angle));
+	fixed z = GetActorZ(0) + GetActorViewHeight(0);
+	
+	int TID = UniqueTID();
+	
+	bool result = !Spawn("TDBot_WallChecker", x, y, z, TID);
+	
+	Thing_Remove(TID);
+	
+	int pNum = PlayerNumber();
+	
+	if( checkJump && ((GetActorVelZ(0)+self.oldVelZ == 0.0) && (GetCVAR("sv_jump") != 2) && result) )
+	{	
+		if(Spawn("TDBot_WallChecker", x, y, z + GetActorProperty(0, APROP_JUMPZ), TID))
+		{
+			TDB_PressKey(BT_JUMP);
+			Thing_Remove(TID);
+			return 2; //jumped
+		}
+	}
+	
+	/*#ifdef DEBUG_MODE
+		Print(i:result);
+	#endif*/
+		
+	return (int)result;
+}
+
+//TRUE if specified class has been replaced, FALSE if not
+bool CheckReplacement (str class)
+{
+	int TID = UniqueTID();
+	if(!SpawnForced(class, 0.0, 0.0, 0.0, TID))
+		return FALSE;
+		
+	bool retval = StriCmp(GetActorClass(TID), class) != 0;
+	
+	Thing_Remove(TID);
+	
+	return retval;
+}
+
+private void TDB_UpdateWeaponFlags ()
+{
+	int TID = UniqueTID();
+			
+	SpawnForced(self.weaponName, 0.0, 0.0, 0.0, TID);
+
+	self.weaponFlags = 0;
+	
+	//Oftentimes checking this flag results in an erroneous TRUE on the starting
+	//weapon, even if it isn't a melee weapon at all (of course, this fix can
+	//cause the opposite problem, but really that's much less common, and
+	//can be fixed by adding exceptions).
+	if(CheckFlag(TID, "MELEEWEAPON") && (self.weaponName != self.firstWeapon) )
+	{
+		#ifdef DEBUG_MODE
+			logf("Weapon %s is a melee weapon", self.weaponName);
+		#endif
+		self.weaponFlags |= TDB_CW_MELEE;
+	}
+	else
+			
+	if( (CheckFlag(TID, "EXPLOSIVE")) || (self.weaponName == "RocketLauncher") )
+	{
+		#ifdef DEBUG_MODE
+			logf("Weapon %s is an explosive weapon", self.weaponName);
+		#endif
+		self.weaponFlags |= TDB_CW_EXPLOSIVE;
+	}
+	
+	Thing_Remove(TID);
+}
+
+// By DarkAssassin.
+Script "TDB_FaceTarget" (int noPitch, int theirID)
+{
+	int myOldID, myID;
+
+	if(!theirID)
+	{
+		// Create a temporary unique TID, as the bot's TID may be 0 or shared with other things.
+		myOldID = ActivatorTID();
+		myID = UniqueTID();
+		Thing_ChangeTID(0, myID);
+
+		if(!SetActivator(myID, AAPTR_TARGET))
+		{
+			Thing_ChangeTID(myID, myOldID);
+			terminate;
+		}
+	}
+
+	// Set angle and pitch.
+	fixed x = GetActorX(theirID) - GetActorX(myID);
+	fixed y = GetActorY(theirID) - GetActorY(myID);
+	if(!noPitch)
+	{
+		fixed z = (((fixed)GetActorProperty(theirID, APROP_Height) * 0.5) + GetActorZ(theirID)) - (GetActorZ(myID) + GetActorViewHeight(myID));
+		SetActorPitch(myID, -VectorAngle(VectorLength(x, y), z));
+	}
+		
+	SetActorAngle(myID, VectorAngle(x, y));
+
+	if(!theirID)
+		Thing_ChangeTID(myID, myOldID);
+}
+
+//from ACSUtils
+raw RandomPick2(raw v0, raw v1)
+{
+	if (Random(0, 1))
+		return v0;
+	return v1;
+}
+
+raw RandomPick3(raw v0, raw v1, raw v2)
+{
+	int x = Random(0, 2);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	}
+
+	return v2;
+}
+
+raw RandomPick4(raw v0, raw v1, raw v2, raw v3)
+{
+	int x = Random(0, 3);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	}
+
+	return v3;
+}
+
+raw RandomPick5(raw v0, raw v1, raw v2, raw v3, raw v4)
+{
+	int x = Random(0, 4);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	case 3: return v3;
+	}
+
+	return v4;
+}
+
+raw RandomPick6(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5)
+{
+	int x = Random(0, 5);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	case 3: return v3;
+	case 4: return v4;
+	}
+
+	return v5;
+}
+
+raw RandomPick7(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5, raw v6)
+{
+	int x = Random(0, 6);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	case 3: return v3;
+	case 4: return v4;
+	case 5: return v5;
+	}
+
+	return v6;
+}
+
+raw RandomPick8(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5, raw v6, raw v7)
+{
+	int x = Random(0, 7);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	case 3: return v3;
+	case 4: return v4;
+	case 5: return v5;
+	case 6: return v6;
+	}
+
+	return v7;
+}
+
+raw RandomPick9(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5, raw v6, raw v7, raw v8)
+{
+	int x = Random(0, 8);
+	switch (x)
+	{
+	case 0: return v0;
+	case 1: return v1;
+	case 2: return v2;
+	case 3: return v3;
+	case 4: return v4;
+	case 5: return v5;
+	case 6: return v6;
+	case 7: return v7;
+	}
+
+	return v8;
+}
+
+bool TDB_FollowPlayer ()
+{
+	if(CheckInventory("BotAttack")) {return FALSE;}
+	
+	fixed dist, newdist, angToPlayer;
+	int node;
+
+	int pNum = PlayerNumber();
+
+	int botnum = PlayerNumber();
+	fixed teledist = (fixed)INT_MAX; //fixed(GetCVAR("tdbots_autoteledist"));
+	
+	if(teledist > 0.0)
+	{
+		if(teledist < 1024.0) {teledist = 1024.0;}
+		dist = 16384.0;
+	}
+	else
+		{dist = 2048.0;}
+	
+	self.goalNode = 0;
+
+	if(IsNetworkGame()) //if not network game then pnum will always be 0
+	{
+		for(int i_ = 0; i_ < MAX_PLAYERS; i_++)
+		{	
+			if((PlayerLocation[i_][0] + PlayerLocation[i_][1]) != 0.0)
+			{
+				newdist = VectorLength(PlayerLocation[i_][0] - GetActorX(0),
+									   PlayerLocation[i_][1] - GetActorY(0));
+				
+				angToPlayer = VectorAngle(PlayerLocation[i_][0] - GetActorX(0),
+										  PlayerLocation[i_][1] - GetActorY(0));
+				
+				if( (newdist < dist) && (!PlayerIsSpectator(i_)) && (!PlayerIsBot(i_)) )
+				{
+					dist = newdist;
+					pnum = i_;
+				}
+			}
+		}
+		
+		if(PlayerIsSpectator(pnum) || PlayerIsBot(pnum) || (botnum == pnum) ) {return FALSE;}
+	}
+	else
+	{
+		if((raw)PlayerIsSpectator(0) != 0) {return FALSE;}
+		dist = VectorLength(PlayerLocation[0][0] - GetActorX(0),
+							PlayerLocation[0][1] - GetActorY(0));
+		
+		angToPlayer = VectorAngle(PlayerLocation[0][0] - GetActorX(0),
+								  PlayerLocation[0][1] - GetActorY(0));
+	}
+	
+	if(dist < 96.0)
+	{
+		SetActorAngle(0, angToPlayer);
+		TDB_SetMove(0.5, 0.5);
+		return TRUE;
+	}
+	
+	dist = 768.0;
+	for(int i = 0; i < MAX_FOLLOW_NODES; i++)
+	{
+		node = PlayerFollowTID[pnum][i];
+		if(node == 0) {break;}
+		
+		if(ThingCount(0, node) > 0)
+		{
+			newdist = Distance(0, node);
+			
+			if( (newdist < dist) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
+			{
+				dist = newdist;
+				self.goalNode = node;
+			}
+		}
+	}
+	
+	if(!self.goalNode) {return false;}
+	
+	//SetPointer(AAPTR_TARGET, retnode, AAPTR_DEFAULT, PTROP_NOSAFEGUARDS|PTROP_UNSAFEMASTER); //return retnode;
+	return true;
+}
+
+bool TDB_OnGround ()
+{
+	#ifdef QCDE_BOT
+		return CheckSolidFooting(0, 0) != CSF_INAIR;
+	#else
+		// use the 3x3 point check I made for BA
+	#endif
+}

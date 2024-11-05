@@ -1,0 +1,68 @@
+#ifdef __IMPORTED__
+	#error This file must be #included.
+#endif
+
+#linklibrary "TDBots"
+
+struct TDB_WeaponInfoT
+{
+	str wpnName;
+	str wpnTick; // Should return buttons to press, args: (int distToTarget)
+	int wpnId;
+
+	// These properties are still relevant regardless of tick script, so
+	// they're also copied
+	str ammo1, ammo2;
+	int ammoUse1, ammoUse2;
+	int flags;
+	int priority;
+
+	// These properties only get copied with the default tick function
+	fixed minDist, maxDist;
+	fixed projSpeed;
+
+	fixed minDistAlt, maxDistAlt;
+	fixed projSpeedAlt;
+
+	fixed altFireChance;
+};
+
+enum
+{
+	TDB_CW_MELEE = 1 << 0,
+	TDB_CW_EXPLOSIVE = 1 << 1,
+	TDB_CW_PROJECTILE = 1 << 2
+};
+
+enum
+{
+	TDB_FLAGS_WAIT = 1,
+	TDB_FLAGS_PREC = 1 << 1,
+	TDB_FLAGS_NOJUMPNODE = 1 << 2,
+	TDB_FLAGS_NOMOVE = 1 << 3
+};
+
+enum {NO_WPN_ID = -1};
+enum : fixed {MAX_RANGE = (fixed)0x7FFFFFFF};
+
+#if 1
+#define TDB_Weapons(key) (TDB_WeaponsStore[TDB_WeaponsMap[TDB_Address_Weapons(key)]])
+#define TDB_Weapons_Check(key) (!!TDB_WeaponsMap[TDB_Address_Weapons(key)])
+#define TDB_Weapons_Alloc(key) ((!TDB_WeaponsMap[TDB_Address_Weapons(key)]) && (TDB_WeaponsMap[TDB_Address_Weapons(key)] = (--TDB_WeaponsCurrIdx)))
+#endif
+
+world int 63:TDB_WeaponsMap[];
+world TDB_WeaponInfoT 62:TDB_WeaponsStore[];
+world int 61:TDB_WeaponsCurrIdx;
+
+extern int TDB_Address_Weapons(str key);
+extern void TDB_Weapon_New(str wpn, int priority = 0, int flags = 0, str callback = "", int wpnId = 0);
+extern void TDB_Weapon_Pri(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0);
+extern void TDB_Weapon_Alt(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0, fixed altFireChance = 0.5);
+extern void TDB_TargetCallbacks_Append(str val);
+
+extern void TDB_Set_Flags(int pnum, int flags);
+extern void TDB_Clear_Flags(int pnum, int flags);
+extern int TDB_Get_Flags(int pnum);
+
+extern TDB_WeaponInfoT TDB_CurrWeapon;

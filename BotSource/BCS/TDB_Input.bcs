@@ -1,0 +1,94 @@
+enum {MOVE_KEEP = 0};
+
+Script "TDB_BotC_SetSkill" (int evade, int accuracy, int react, int perception)
+{
+	//delay(2);
+
+	if(self.initSkills)
+		terminate;
+
+	// Bots should have maxed out skills in PvE modes.
+	if(GameType() <= GAME_NET_COOPERATIVE)
+	{
+		self.perception = 360;
+		terminate;
+	}
+
+	DLogf("%n's skill settings:", 0);
+	DLogf("eva = %i", evade);
+	DLogf("acc = %i", accuracy);
+	DLogf("reac = %i", react);
+	DLogf("perc = %i", perception);
+
+	self.nonEvadeChance = (-evade) + 8;
+	self.inaccuracy = (accuracy >= 8) ? 0.0 : (fixed((-accuracy) + 8) / 96.0); // 0.0 to 0.125, fixed point angle
+	self.reactTime = ((-react) + 8) * 4; // from instant to up to slightly over two full seconds (attack state ticks every 2 tics)
+	self.perception = 120 + (30 * perception);
+}
+
+Script "TDB_BotC_SetSkill2" (int intellect)
+{
+	self.initSkills = true;
+
+	DLogf("intel = %i", intellect);
+	self.intellect = intellect;
+}
+
+Script "TDB_BotC_GetButtons"
+{
+	SetResultValue(self.buttons);
+}
+
+Script "TDB_BotC_GetFwMove"
+{
+	SetResultValue(self.fwmove);
+}
+
+Script "TDB_BotC_GetSdMove"
+{
+	SetResultValue(self.sdmove);
+}
+
+Script "_TDB_PressKey_Handle" (int key)
+{
+	delay(1);
+	TDB_ReleaseKey(key);
+}
+
+void TDB_PressKey (int key)
+{
+	TDB_HoldKey(key);
+	ACS_NamedExecuteAlways("_TDB_PressKey_Handle", 0, key);
+}
+
+void TDB_HoldKey (int key)
+{
+	if(self.flags & TDB_FLAGS_NOMOVE)
+		key &= ~(BT_JUMP|BT_CROUCH);
+
+	self.buttons |= key;
+}
+
+void TDB_ReleaseKey (int key)
+{
+	self.buttons &= ~key;
+}
+
+void TDB_SetMove (fixed angle, fixed vel)
+{
+	if(self.flags & TDB_FLAGS_NOMOVE)
+	{
+		self.fwmove = self.sdmove = 0;
+		return;
+	}
+
+	vel = (raw)vel * 100;
+
+	self.fwmove = int(cos(angle) * vel);
+	self.sdmove = int(sin(angle) * vel);
+}
+
+Script "TDB_OnDeath" DEATH
+{
+	self.buttons = self.sdmove = self.fwmove = 0;
+}

@@ -1,0 +1,420 @@
+#define TDB_DEFAULTWPNTICK "TDB_DefaultWeaponTick"
+
+#define TDB_Weapons(key) (TDB_WeaponsStore[TDB_WeaponsMap[TDB_Address_Weapons(key)]])
+#define TDB_Weapons_Check(key) (!!TDB_WeaponsMap[TDB_Address_Weapons(key)])
+#define TDB_Weapons_Alloc(key) ((!TDB_WeaponsMap[TDB_Address_Weapons(key)]) && (TDB_WeaponsMap[TDB_Address_Weapons(key)] = (--TDB_WeaponsCurrIdx)))
+
+enum
+{
+	WPN_FIST,
+	WPN_CHAINSAW,
+	WPN_PISTOL,
+	WPN_SHOTGUN,
+	WPN_SUPERSHOTGUN,
+	WPN_CHAINGUN,
+	WPN_ROCKETL,
+	WPN_PLASMA,
+	WPN_BFG
+};
+
+enum {NO_WPN_ID = -1};
+enum : fixed {MAX_RANGE = (fixed)0x7FFFFFFF};
+
+struct TDB_WeaponInfoT
+{
+	str wpnName;
+	str wpnTick; // Should return buttons to press, args: (int distToTarget)
+	int wpnId;
+
+	str ammo1, ammo2;
+	int ammoUse1, ammoUse2;
+	int priority;
+
+	fixed minDist, maxDist;
+	fixed projSpeed;
+	int flags;
+
+	fixed minDistAlt, maxDistAlt;
+	fixed projSpeedAlt;
+	int flagsAlt;
+
+	fixed altFireChance; // {-1.0, [0.0, 1.0]}, -1 is no alt fire at all, 1.0 is 100% likely to alt fire
+};
+
+world int 163:TDB_WeaponsMap[];
+world TDB_WeaponInfoT 162:TDB_WeaponsStore[];
+world int 161:TDB_WeaponsCurrIdx;
+
+TDB_WeaponInfoT TDB_CurrWeapon;
+
+HeapArrayT_Defn(str, TDB_TargetCallbacks, 8);
+
+bool TDB_CheckTarget ()
+{
+	int botTID, oldBotTID;
+	int enemyTID, oldEnemyTID;
+	int max = TDB_TargetCallbacks_Curr();
+	if(!max)
+		return true;
+
+	void Cleanup (bool cleanEnemy = true)
+	{
+		DecoAction("TDBot_ClearTarget");
+		if(cleanEnemy)
+		{
+			SetActivator(botTID);
+			Thing_ChangeTID(enemyTID, oldEnemyTID);
+		}
+
+		Thing_ChangeTID(botTID, oldBotTID);
+
+		DLogf("%n my TID now is %i", 0, ActivatorTID());
+	}
+
+	DLogf("%n my TID is %i", 0, ActivatorTID());
+
+	TDB_NewTempTID();
+	botTID = r1;
+	oldBotTID = r2;
+
+	if(!SetActivator(0, AAPTR_TARGET))
+	{
+		DLogf("pingas 1");
+		Cleanup(false);
+		return false;
+	}
+
+	TDB_NewTempTID();
+	enemyTID = r1;
+	oldEnemyTID = r2;
+
+	if(!SetActivator(botTID))
+	{
+		DLogf("pingas 2");
+		Cleanup();
+		return false;
+	}
+
+	for(int i = 0; i < max; i++)
+	{
+		DLogf("%s: callback %s #%i", __FUNCTION__, TDB_TargetCallbacks_Get(i), i);
+		if(!CallACS(TDB_TargetCallbacks_Get(i), enemyTID, oldEnemyTID))
+		{
+			Cleanup();
+			return false;
+		}
+	}
+
+	Cleanup();
+	return true;
+}
+
+void TDB_Set_Flags(int pnum, int flags)
+{
+	TDBotInfo[pnum].flags |= flags;
+}
+
+void TDB_Clear_Flags(int pnum, int flags)
+{
+	TDBotInfo[pnum].flags &= ~flags;
+}
+
+int TDB_Get_Flags(int pnum)
+{
+	return TDBotInfo[pnum].flags;
+}
+
+// just forces BCC to generate PCD_TAGSTRING
+int TDB_Address_Weapons(str key)
+{
+	return (int)key;
+}
+
+void TDB_Weapon_New(str wpn, int priority = 0, int flags = 0, str callback = "", int wpnId = 0)
+{
+	int idx;
+	TDB_Weapons_Alloc(wpn);
+
+	idx = TDB_WeaponsMap[TDB_Address_Weapons(wpn)];
+
+	TDB_WeaponsStore[idx].wpnName = wpn;
+	TDB_WeaponsStore[idx].wpnId = wpnId;
+	TDB_WeaponsStore[idx].wpnTick = (StrLen(callback)) ? callback : TDB_DEFAULTWPNTICK;
+	TDB_WeaponsStore[idx].priority = priority;
+	TDB_WeaponsStore[idx].flags = flags;
+	TDB_WeaponsStore[idx].altFireChance = -1.0;
+}
+
+void TDB_Weapon_Pri(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0)
+{
+	int idx;
+
+	if(!TDB_Weapons_Check(wpn))
+		return;
+
+	idx = TDB_WeaponsMap[TDB_Address_Weapons(wpn)];
+
+	TDB_WeaponsStore[idx].minDist = minDist;
+	TDB_WeaponsStore[idx].maxDist = maxDist;
+	TDB_WeaponsStore[idx].projSpeed = projSpeed;
+	TDB_WeaponsStore[idx].ammo1 = ammo;
+	TDB_WeaponsStore[idx].ammoUse1 = ammoUse;
+	TDB_WeaponsStore[idx].flags = flags;
+}
+
+void TDB_Weapon_Alt(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0, fixed altFireChance = 0.5)
+{
+	int idx;
+
+	if(!TDB_Weapons_Check(wpn))
+		return;
+
+	idx = TDB_WeaponsMap[TDB_Address_Weapons(wpn)];
+
+	TDB_WeaponsStore[idx].altFireChance = altFireChance;
+	TDB_WeaponsStore[idx].minDistAlt = minDist;
+	TDB_WeaponsStore[idx].maxDistAlt = maxDist;
+	TDB_WeaponsStore[idx].projSpeedAlt = projSpeed;
+	TDB_WeaponsStore[idx].ammo2 = ammo;
+	TDB_WeaponsStore[idx].ammoUse2 = ammoUse;
+	TDB_WeaponsStore[idx].flagsAlt = flags;
+}
+
+void TDB_CallWeaponTick(str wpn, fixed dist)
+{
+	int idx, btns;
+	str wpnTickName = TDB_DEFAULTWPNTICK;
+
+	if(!TDB_Weapons_Check(wpn))
+	{
+		TDB_CurrWeapon.wpnName = "";
+		TDB_CurrWeapon.wpnId = 0;
+		TDB_CurrWeapon.ammo1 = "";
+		TDB_CurrWeapon.ammo2 = "";
+		TDB_CurrWeapon.ammoUse1 = 0;
+		TDB_CurrWeapon.ammoUse2 = 0;
+		TDB_CurrWeapon.flags = self.weaponFlags;
+		TDB_CurrWeapon.priority = 0;
+		goto doCall;
+	}
+
+	idx = TDB_WeaponsMap[TDB_Address_Weapons(wpn)];
+
+	memcpy(TDB_CurrWeapon, TDB_WeaponsStore[idx]);
+
+	doCall:
+	if(TDB_Weapons_Check(self.weaponName))
+		wpnTickName = TDB_Weapons(self.weaponName).wpnTick;
+
+	TDB_ReleaseKey(BT_ATTACK|BT_ALTATTACK|BT_ZOOM|BT_RELOAD);
+	btns = CallACS(wpnTickName, dist, self.lastAttackBtn);
+	self.lastAttackBtn = btns & (BT_ATTACK|BT_ALTATTACK|BT_ZOOM|BT_RELOAD);
+	TDB_HoldKey(self.lastAttackBtn);
+
+	if(btns & BT_FORWARD)
+	{
+		if(!random(0, self.nonEvadeChance))
+			TDB_SetMove(0.0, 1.0);
+		else
+			TDB_SetMove(RandomPick2(0.125, 0.875), 1.0);
+	}
+	else if(btns & BT_BACK)
+	{
+		if(!random(0, self.nonEvadeChance))
+			TDB_SetMove(0.5, 1.0);
+		else
+			TDB_SetMove(RandomPick2(0.375, 0.675), 1.0);
+	}
+	else
+	{
+		if(!random(0, self.nonEvadeChance))
+			TDB_SetMove(RandomPick2(0.25, 0.75), 1.0);
+		else
+			TDB_SetMove(0.0, 0.0);
+	}
+
+	if((self.intellect >= 7) && TDB_Weapons_Check(self.weaponName))
+	{
+		int wpn = TDB_WeaponsMap[TDB_Address_Weapons(self.weaponName)];
+
+		if( ((self.buttons & BT_ATTACK) && (TDB_WeaponsStore[wpn].flags & TDB_CW_PROJECTILE)) ||
+		((self.buttons & BT_ALTATTACK) && (TDB_WeaponsStore[wpn].flagsAlt & TDB_CW_PROJECTILE)) )
+		{
+			DPrintBoldf("%n: leading aim with weapon %s, projspeed = %f", 0, self.weaponName, (self.buttons & BT_ATTACK) ? TDB_WeaponsStore[wpn].projSpeed : TDB_WeaponsStore[wpn].projSpeedAlt);
+			VelIntercept(0, AAPTR_TARGET, (self.buttons & BT_ATTACK) ? TDB_WeaponsStore[wpn].projSpeed : TDB_WeaponsStore[wpn].projSpeedAlt, true);
+		}
+	}
+}
+
+str TDB_FindBestWeapon (fixed dist) {
+	fixed bestDist = MAX_RANGE, tmp;
+	int priority;
+	str finalWpn = "";
+	bool foundWithinRange = false;
+
+	// If current weapon is in range, keep using it
+	bool hasPrimAmmo = !StrLen(TDB_CurrWeapon.ammo1) || (CheckInventory(TDB_CurrWeapon.ammo1) >= TDB_CurrWeapon.ammoUse1);
+	bool hasAltAmmo = (TDB_CurrWeapon.altFireChance >= 0.0) && (!StrLen(TDB_CurrWeapon.ammo2) || (CheckInventory(TDB_CurrWeapon.ammo2) >= TDB_CurrWeapon.ammoUse2));
+
+	if (hasPrimAmmo || hasAltAmmo)
+	{
+		bool primInRange = hasPrimAmmo && (dist >= TDB_CurrWeapon.minDist) && (dist <= TDB_CurrWeapon.maxDist);
+		bool altInRange = hasAltAmmo && (dist >= TDB_CurrWeapon.minDistAlt) && (dist <= TDB_CurrWeapon.maxDistAlt);
+
+		if (primInRange || altInRange) {
+			return TDB_CurrWeapon.wpnName;
+		}
+	}
+
+	for(int i = TDB_WeaponsCurrIdx; i < 0; i++)
+	{
+		// Check if bot has the weapon
+		if(!CheckInventory(TDB_WeaponsStore[i].wpnName))
+			continue;
+
+		// Check if bot has ammo
+		if ( ( StrLen(TDB_WeaponsStore[i].ammo1) && CheckInventory(TDB_WeaponsStore[i].ammo1) < TDB_WeaponsStore[i].ammoUse1 )
+			&& ( ( TDB_WeaponsStore[i].altFireChance < 0.0 )
+			 || ( StrLen(TDB_WeaponsStore[i].ammo2) && CheckInventory(TDB_WeaponsStore[i].ammo2) < TDB_WeaponsStore[i].ammoUse2 ) ) )
+			continue;
+
+		// Check if distance to the enemy is within weapon range
+		if ( ((dist >= TDB_WeaponsStore[i].minDist) && (dist <= TDB_WeaponsStore[i].maxDist))
+			||
+			((dist >= TDB_WeaponsStore[i].minDistAlt) && (dist <= TDB_WeaponsStore[i].maxDistAlt)) )
+		{
+			foundWithinRange = true;
+
+			// Find best weapon by priority
+        	if (TDB_WeaponsStore[i].priority > priority)
+        	{
+        		priority = TDB_WeaponsStore[i].priority;
+        		finalWpn = TDB_WeaponsStore[i].wpnName;
+        	} else if (TDB_WeaponsStore[i].priority == priority && frandom(1, 1.0) < 0.5) {
+        		priority = TDB_WeaponsStore[i].priority;
+        		finalWpn = TDB_WeaponsStore[i].wpnName;
+        	}
+		}
+		else
+		{
+			// Some previous weapon is within distance range, so ignore all weapons outside the range
+			if (foundWithinRange)
+				continue;
+
+			// Find best weapon by distance
+            tmp = abs(dist - TDB_WeaponsStore[i].minDist);
+            if(bestDist > tmp)
+            {
+            	bestDist = tmp;
+            	finalWpn = TDB_WeaponsStore[i].wpnName;
+            }
+            
+            tmp = abs(dist - TDB_WeaponsStore[i].maxDist);
+            if(bestDist > tmp)
+            {
+            	bestDist = tmp;
+            	finalWpn = TDB_WeaponsStore[i].wpnName;
+            }
+		}
+	}
+
+	return finalWpn;
+}
+
+Script TDB_DEFAULTWPNTICK (raw dist, int attackBtn)
+{
+	SetResultValue(0);
+
+	bool hasPrimAmmo = !StrLen(TDB_CurrWeapon.ammo1) || (CheckInventory(TDB_CurrWeapon.ammo1) >= TDB_CurrWeapon.ammoUse1);
+	bool hasAltAmmo = (TDB_CurrWeapon.altFireChance >= 0.0) && (!StrLen(TDB_CurrWeapon.ammo2) || (CheckInventory(TDB_CurrWeapon.ammo2) >= TDB_CurrWeapon.ammoUse2));
+
+	if (!hasPrimAmmo && !hasAltAmmo)
+	{
+		str bestWeapon = TDB_FindBestWeapon(dist);
+		if (strcmp(bestWeapon, TDB_CurrWeapon.wpnName))
+			SetWeapon(bestWeapon);
+		terminate;
+	}
+
+	bool primInRange = hasPrimAmmo && (dist >= TDB_CurrWeapon.minDist) && (dist <= TDB_CurrWeapon.maxDist);
+	bool altInRange = hasAltAmmo && (dist >= TDB_CurrWeapon.minDistAlt) && (dist <= TDB_CurrWeapon.maxDistAlt);
+
+	if (primInRange && altInRange) {
+		fixed chance = frandom(1, 1.0);
+		attackBtn = (chance < TDB_CurrWeapon.altFireChance) ? BT_ALTATTACK : BT_ATTACK;
+	} else if (primInRange) {
+		attackBtn = BT_ATTACK;
+	} else if (altInRange) {
+		attackBtn = BT_ALTATTACK;
+	} else {
+		// Both fire modes are out of range, consider changing weapon to a better suited one
+		str bestWeapon = TDB_FindBestWeapon(dist);
+		if (strcmp(bestWeapon, TDB_CurrWeapon.wpnName)) {
+			SetWeapon(bestWeapon);
+			terminate;
+		}
+
+		// Current weapon is best despite being out of range. Fire it then.
+		if (hasPrimAmmo && hasAltAmmo) {
+			fixed chance = frandom(1, 1.0);
+        	attackBtn = (chance < TDB_CurrWeapon.altFireChance) ? BT_ALTATTACK : BT_ATTACK;
+        } else if (hasPrimAmmo) {
+        	attackBtn = BT_ATTACK;
+        } else if (hasAltAmmo) {
+        	attackBtn = BT_ALTATTACK;
+        }
+	}
+
+	fixed minDist;
+	int flags;
+	if(attackBtn == BT_ALTATTACK)
+	{
+		minDist = TDB_CurrWeapon.minDistAlt;
+		flags = TDB_CurrWeapon.flagsAlt;
+	}
+	else
+	{
+		minDist = TDB_CurrWeapon.minDist;
+		flags = TDB_CurrWeapon.flags;
+	}
+
+	int btns = attackBtn;
+
+	if(flags & TDB_CW_EXPLOSIVE && dist < minDist)
+	{
+		btns |= BT_BACK;
+	}
+	else if(flags & TDB_CW_MELEE)
+	{
+		btns |= BT_FORWARD;
+	}
+
+	SetResultValue(btns);
+}
+
+#define this TDB_WeaponsStore[i]
+Script "TDB_Weapons_Print" (void)
+{
+	for(int i = -1; i > TDB_WeaponsCurrIdx; i--)
+	{
+		Log(s:"\n===== Weapon #", i:-i, s:" =====");
+		Log(s:"wpnName = ", s:this.wpnName);
+		Log(s:"wpnTick = ", s:this.wpnTick);
+		Log(s:"wpnId = ", i:this.wpnId);
+		Log(s:"ammo1 = ", s:(StrLen(this.ammo1)) ? this.ammo1 : "N/A");
+		Log(s:"ammo2 = ", s:(StrLen(this.ammo2)) ? this.ammo2 : "N/A");
+		Log(s:"ammoUse1 = ", i:this.ammoUse1);
+		Log(s:"ammoUse2 = ", i:this.ammoUse2);
+		Log(s:"priority = ", i:this.priority);
+		Log(s:"minDist = ", f:this.minDist);
+		Log(s:"maxDist = ", f:this.maxDist);
+		Log(s:"projSpeed = ", f:this.projSpeed);
+		Log(s:"flags = ", i:this.flags);
+		Log(s:"minDistAlt = ", f:this.minDistAlt);
+		Log(s:"maxDistAlt = ", f:this.maxDistAlt);
+		Log(s:"projSpeedAlt = ", f:this.projSpeedAlt);
+		Log(s:"flagsAlt = ", i:this.flagsAlt);
+		Log(s:"altFireChance = ", i:this.altFireChance);
+	}
+}
+#undef this

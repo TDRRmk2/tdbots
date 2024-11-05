@@ -1,0 +1,124 @@
+Script "TDBot_Init" (raw respawning)
+{
+	if(PlayerNumber() == -1)
+		terminate;
+
+	if(!PlayerIsBot(PlayerNumber()))
+	{
+		CallACS("TDBots_WalkNoding");
+		
+		/*if(GetCVAR("TDBots_AllowOrder"))
+			GiveInventory("TDBot_ToggleOrder", 1);
+		else
+			TakeInventory("TDBot_ToggleOrder", 1);*/
+		
+		// stop pickups
+		foreach(str item; TDB_NodeActors)
+			GiveInventory(item, 1);
+			
+		terminate;
+	}
+		
+	if(respawning)
+	{
+		TakeInventory("BotCurrentOrder", 1);
+		foreach(str item; TDB_NodeActors)
+			TakeInventory(item, 1);
+	}
+	else
+	{
+		memcpy(self, EmptyBotInfo);
+	}
+
+	GiveInventory("TDBots_IsBot", 1);
+	
+	self.state = TDB_STATE_ROAM;
+	int oldState = -1;
+	bool justEntered = TRUE;
+	
+	self.className = "";
+	self.weaponName = "";
+	self.lastTargetPlayer = -1;
+	
+	self.noNodeWait = 0;
+	self.stuckTimer = 0;
+	self.posDiff = 0.0;
+	
+	//Used to not count the starting weapon as a melee weapon. A couple
+	//exceptions are here for Hexen, and more may come in the future.
+	if( (GetWeapon() != "FWeapFist") && (GetWeapon() != "CWeapMace") )
+		self.firstWeapon = GetWeapon();
+	else
+		self.firstWeapon = "";
+	
+	delay(1);
+	
+	while(GetActorProperty(0, APROP_HEALTH) > 0)
+	{
+		//bot morphed, update speed and other things
+		if(GetActorClass(0) != self.className)
+		{
+			self.className = GetActorClass(0);
+		}
+
+		//weapon switched, get new weapon flags
+		if(GetWeapon() != self.weaponName)
+		{
+			self.weaponName = GetWeapon();
+			self.lastAttackBtn = 0;
+			TDB_ReleaseKey(BT_ATTACK|BT_ALTATTACK|BT_ZOOM|BT_RELOAD);
+
+			if(!TDB_Weapons_Check(self.weaponName))
+				TDB_UpdateWeaponFlags();
+		}
+		
+		self.state = TDBot_States[self.state].func(justEntered);
+		
+		if(self.state != oldState)
+		{
+			justEntered = TRUE;
+			oldState = self.state;
+		}
+		else
+		{
+			justEntered = FALSE;
+		}
+		
+		self.oldVelZ = GetActorVelZ(0);
+		delay(TDBot_States[self.state].delayTime);
+	}
+}
+
+Script "TDBot_Init_Enter" ENTER
+{
+	CallACS("TDBot_Init", false);
+}
+
+Script "TDBot_Init_Respawn" RESPAWN
+{
+	CallACS("TDBot_Init", true);
+}
+
+/*Script "WeaponTest" ENTER
+{
+	int pNum = PlayerNumber();
+	
+	TDBotInfo[pNum].weaponName = "";
+	
+	while(GetActorProperty(0, APROP_HEALTH) > 0)
+	{
+		//weapon switched, get new weapon flags
+		if(GetWeapon() != TDBotInfo[pNum].weaponName)
+		{
+			TDBotInfo[pNum].weaponName = GetWeapon();
+			TDB_UpdateWeaponFlags();
+		}
+		
+		delay(1);
+	}
+}*/
+
+/*Script "TDBot_TestWall" (void)
+{
+	Print(s:TDB_CheckWall(48.0) ? "Found wall" : "No wall");
+}*/

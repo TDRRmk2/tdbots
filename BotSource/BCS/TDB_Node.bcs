@@ -1,0 +1,543 @@
+private struct TDB_NodeT
+{
+	str className;
+	int tid, type;
+	fixed x,y,z;
+	fixed angle;
+	bool noGravity;
+	int arg1, arg2, arg3;
+
+} TDB_Nodes[MAX_NODES];
+
+int CurrArrayIndex;
+
+#ifndef DEBUG_MODE
+int ShowNodes = -1;
+#else
+int ShowNodes = 1;
+#endif
+
+//Player-generated nodes, then transfered to TDB_Nodes once finished.
+int PlayNodeTID[MAX_NODES];
+int PlayNodePos[MAX_NODES][4];
+int CurrPNTID; //Keep track of current index on above array
+
+//Player following-related stuff.
+int PlayerFollowTID[MAX_PLAYERS][MAX_FOLLOW_NODES];
+fixed PlayerLocation[MAX_PLAYERS][3];
+
+//Time since map start
+int TSMS = -1;
+
+int AmountOfNodes;
+
+//Function from ACSUtils, licensed under the MIT License.
+//Copyright (c) 2016-2017 By Alexander Korshun and the ACSUtils contributors.
+//Originally called ActorDistance2D.
+fixed Distance(int tid1, int tid2)
+{
+	return VectorLength(GetActorX(tid2) - GetActorX(tid1),
+						GetActorY(tid2) - GetActorY(tid1));
+}
+
+fixed Distance3D(int tid1, int tid2)
+{
+	return VectorLength(VectorLength(GetActorX(tid2) - GetActorX(tid1),
+						GetActorY(tid2) - GetActorY(tid1)),
+						GetActorZ(tid2) - GetActorZ(tid1));
+}
+
+#ifndef QCDE_BOT
+bool TDB_PlayerNoding ()
+{
+	if(CurrPNTID > MAX_NODES) {return FALSE;}
+	
+	int node, retnode;
+	fixed dist = 132.0;
+	fixed newdist;
+	
+	for(int i_ = 0; i_ <= MAX_NODES; i_++)
+	{
+		node = PlayNodeTID[i_];
+		if(node == 0) {break;}
+		newdist = Distance(0, node);
+		
+		if( (newdist < dist) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
+		{
+			return FALSE;
+		}
+	}
+	
+	int TID = UniqueTID();
+	SpawnForced("TDBots_PathNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
+	
+	PlayNodeTID[CurrPNTID] = TID;
+	PlayNodePos[CurrPNTID][0] = int(GetActorX(0));
+	PlayNodePos[CurrPNTID][1] = int(GetActorY(0));
+	PlayNodePos[CurrPNTID][2] = int(GetActorZ(0));
+	PlayNodePos[CurrPNTID][3] = NODE_NORMAL;
+	
+	CurrPNTID++;
+	return TRUE;
+}
+
+void TDB_CopyNodeTIDs ()
+{
+	if(NodeTID[0] != 0) {return;}
+	int node;
+	for(int i; i <= MAX_NODES; i++)
+	{
+		node = PlayNodeTID[i];
+		if(node == 0) {break;}
+		NodeTID[i] = node;
+	}
+}
+#endif
+
+Script "TDBots_SetTarget" (int tid)
+{
+	if(tid == 0) {terminate;}
+	
+	SetPointer(AAPTR_TARGET, tid, AAPTR_DEFAULT, PTROP_NOSAFEGUARDS|PTROP_UNSAFEMASTER);
+}
+
+#ifndef QCDE_BOT
+Script "TDBots_PlayerNoding" ENTER
+{
+	if( (TSMS <= 0) || PlayerIsBot(PlayerNumber()) || (Gametype() <= GAME_NET_COOPERATIVE) ) //|| (!GetCVAR("tdbots_learnfromplayer")) )
+		terminate;
+
+	DPrintf("learning");
+
+	while( (TSMS <= (35*120) ) && (GetActorProperty(0, APROP_HEALTH) > 0))
+	{
+		delay(8);
+
+		TDB_PlayerNoding();
+	}
+}
+
+Script "TDBots_PlayerNodingRespawn" RESPAWN
+{
+	ACS_NamedExecuteAlways("TDBots_PlayerNoding",0);
+}
+
+Script "TDBots_LoadNodes" OPEN
+{
+	delay(1);
+
+	if( (CurrArrayIndex <= 0) ) //|| (!GetCVar("tdbots_learnfromplayer")) )
+		terminate;
+	
+	while(TSMS <= (35*120))
+	{
+		delay(1);
+		TSMS++;
+		if( (TSMS == (35*30) ) || (TSMS == (35*60) ) || (TSMS == 30*90) )
+			TDB_CopyNodeTIDs();
+	}
+
+	TDB_CopyNodeTIDs();
+}
+#endif
+
+Script "TDBots_WalkNoding" (int attach)
+{
+	if( (PlayerIsBot(PlayerNumber())) )
+	{
+		PlayerLocation[PlayerNumber()][0] = 0.0;
+		PlayerLocation[PlayerNumber()][1] = 0.0;
+		PlayerLocation[PlayerNumber()][2] = 0.0;
+		terminate;
+	}
+	
+	if( (Gametype() > GAME_NET_COOPERATIVE)) {terminate;}
+	//if(!GetCVAR("tdbots_follow")) {terminate;}
+	
+	int TID;
+	
+	while(GetActorProperty(0, APROP_HEALTH) > 0)
+	{
+		for(int i = 0; i < MAX_FOLLOW_NODES; i++)
+		{	
+			delay(16);
+			
+			TID = UniqueTID();
+			SpawnForced("TDBots_TempNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
+			
+			PlayerFollowTID[PlayerNumber()][i] = TID;
+			PlayerLocation[PlayerNumber()][0] = GetActorX(0);
+			PlayerLocation[PlayerNumber()][1] = GetActorY(0);
+			PlayerLocation[PlayerNumber()][2] = GetActorZ(0);
+		}
+	}
+	
+	for(int j = 0; j < 2; j++)
+		PlayerLocation[PlayerNumber()][j] = 0.0;
+}
+
+//Also returns the target player's number
+Script "TDBots_ChaseNode"
+{
+	SetActivator(0, AAPTR_TARGET);
+	
+	if(PlayerFollowTID[PlayerNumber()][0] == 0)
+		SetResultValue(PlayerNumber());
+	else
+		terminate;
+	
+	DPrintf("%n: %s running on you", 0, __SCRIPT__);
+	
+	int TID;
+	
+	//Drop nodes for a little while
+	for(int i_ = 0; i_ < 1; i_++)
+	{
+		for(int i = 0; i < MAX_FOLLOW_NODES; i++)
+		{
+			if(GetActorProperty(0, APROP_HEALTH) <= 0)
+				break;
+			
+			TID = UniqueTID();
+			SpawnForced("TDBots_TempNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
+			
+			PlayerFollowTID[PlayerNumber()][i] = TID;
+			
+			delay(16);
+		}
+	}
+	
+	for(int j = 0; j < MAX_FOLLOW_NODES; j++)
+		PlayerFollowTID[PlayerNumber()][j] = 0;
+}
+
+private int nodeSpecialTmp;
+
+Script "TDBots_NodeGetSpecial" (int spc)
+{
+	nodeSpecialTmp = spc;
+}
+
+Script "TDBots_Node_Add" (int type, int arg1, int arg2, int arg3)
+{
+	int TID;
+	auto node = TDB_Nodes[CurrArrayIndex];
+
+	nodeSpecialTmp = 0;
+	GiveInventory("TDBots_NodeGetSpecial", 1);
+	if(nodeSpecialTmp)
+		terminate;
+
+	TID = UniqueTID();
+
+	Thing_ChangeTID(0, TID);
+
+	node.angle = GetActorAngle(TID);
+	
+	node.type = type;
+	node.x = GetActorX(TID);
+	node.y = GetActorY(TID);
+	node.z = GetActorZ(TID);
+	node.arg1 = arg1;
+	node.arg2 = arg2;
+	node.arg3 = arg3;
+	node.angle = GetActorAngle(TID);
+	node.tid = TID;
+
+	if(CheckFlag(TID, "AMBUSH"))
+	{
+		TDB_SetActorFlag(TID, "NOGRAVITY", true);
+		Thing_Stop(TID);
+		node.noGravity = true;
+	}
+	
+	GiveActorInventory(TID, "TDBots_IDoExist", 1);
+	SetThingSpecial(TID, ACS_ExecuteWithResult, TDB_Touch_Node, CurrArrayIndex);
+
+	if(ShowNodes == -1)
+		ShowNodes = GetCVAR("tdb_show_nodes");
+
+	if(ShowNodes)
+		SetActorProperty(TID, APROP_RenderStyle, STYLE_Normal);
+
+	CurrArrayIndex++;
+}
+
+Script "TDB_JumpNode_NoMove"
+{
+	TDBotInfo[PlayerNumber()].flags |= TDB_FLAGS_NOMOVE;
+	TDB_SetMove(0.0, 0.0);
+	TDB_ReleaseKey(BT_CROUCH);
+	Delay(16);
+	TDBotInfo[PlayerNumber()].flags &= ~TDB_FLAGS_NOMOVE;
+}
+
+Script TDB_Touch_Node (int id)
+{
+	bool noPickup = false;
+	auto node = TDB_Nodes[id];
+	
+	// DLogf("%n: running TDB_Touch_Node", 0);
+	
+	if(!PlayerIsBot(PlayerNumber()))
+	{
+		foreach(str item; TDB_NodeActors)
+			GiveInventory(item, 1);
+		
+		goto spawn;
+	}
+	
+	switch(node.type)
+	{
+	case TDB_PATH_NODE:
+	case TDB_BIG_NODE:
+	{
+		self.flags &= ~(TDB_FLAGS_PREC | TDB_FLAGS_NOJUMPNODE);
+	}
+	break;
+
+	case TDB_JUMP_NODE:
+	{
+		if(!TDB_OnGround())
+		{
+			DLogf("%n: not on ground", 0);
+			noPickup = true;
+			break;
+		}
+
+		if( (self.flags & TDB_FLAGS_NOJUMPNODE) && !node.arg2)
+		{
+			DLogf("%n: has nojumpnode flag", 0);
+			noPickup = true;
+			break;
+		}
+		
+		fixed angle = node.angle;
+
+		if(!node.arg2)
+			self.flags |= TDB_FLAGS_NOJUMPNODE;
+		
+		SetActorAngle(0, angle);
+		
+		fixed speed = VectorLength(GetActorVelX(0), GetActorVelY(0)) + fixed(node.arg1);
+
+		DPrintBoldf("%f", speed);
+		DPrintBoldf("%i", node.arg1);
+		
+		TDB_PressKey(BT_JUMP);
+		SetActorVelocity(0, cos(angle) * speed, sin(angle) * speed, GetActorVelZ(0), false, false);
+
+		ACS_NamedExecuteWithResult("TDB_JumpNode_NoMove");
+			
+		self.state = TDB_STATE_JUMP;
+	}
+	break;
+
+	case TDB_PREC_NODE:
+	{
+		self.flags &= ~TDB_FLAGS_NOJUMPNODE;
+		self.flags |= TDB_FLAGS_PREC;
+	}
+	break;
+	
+	case TDB_LIFT_NODE:
+	{
+		int tag = node.arg1;
+		
+		self.flags |= TDB_FLAGS_WAIT;
+		TagWait(tag);
+		self.flags &= ~TDB_FLAGS_WAIT;
+	}
+	break;
+	
+	default:
+		Logf("%n ERROR: TDB_Touch_Node called with unknown node type %i", 0, node.type);
+	break;
+	}
+	
+	spawn:
+	if(!noPickup)
+	{
+		// Allow picking up a node of this type again.
+		TakeInventory(TDB_NodeActors[node.type], 1);
+
+		Delay(35 * 5);
+	}
+
+	SpawnForced(TDB_NodeActors[node.type], node.x, node.y, node.z, node.tid, (raw)node.angle >> 8);
+	SetThingSpecial(node.tid, ACS_ExecuteWithResult, TDB_Touch_Node, id);
+	GiveActorInventory(node.tid, "TDBots_IDoExist", 1);
+
+	if(ShowNodes)
+		SetActorProperty(node.tid, APROP_RenderStyle, STYLE_Normal);	
+
+	if(node.noGravity)
+	{
+		TDB_SetActorFlag(node.tid, "NOGRAVITY", true);
+		Thing_Stop(node.tid);
+	}
+
+	if(noPickup)
+	{
+		Delay(1);
+		TakeInventory(TDB_NodeActors[node.type], 1);
+	}
+}
+
+bool TDB_FollowNode (int targetPlayer = -1)
+{
+	if( (Gametype() <= GAME_NET_COOPERATIVE) ) //&& GetCVAR("tdbots_follow"))
+	{
+		return TDB_FollowPlayer();
+	}
+
+	DLogf("%n: running %s", 0, __FUNCTION__);
+
+	if(!TDB_Nodes[0].tid)
+		return false;
+
+	int pNum = PlayerNumber();
+
+	// Early out, most of the time we already have a target node so no need to look it up every time.
+	if(TDB_HasTargetNode(self) && CheckSight(0, self.goalNode, CSF_NOFAKEFLOORS) && (Distance(0, self.goalNode) < 784.0) &&
+		(abs(GetActorZ(0) - GetActorZ(self.goalNode)) < 128.0) )
+	{
+		if(self.stuckTimer > (70/3))
+		{
+			//If the bot hasn't moved at least 192 units in two seconds, stop
+			//following nodes for 5 seconds, to hopefully get away from it
+			DLogf("%n starting wait", 0);
+			self.noNodeWait = (self.posDiff < 192.0) ? (35 * 5)/3 : 0;
+
+			self.stuckTimer = 0;
+			self.posDiff = 0.0;
+
+			self.goalNode = 0;
+			return false;
+		}
+		else
+		{
+			self.posDiff += VectorLength(GetActorX(0) - self.oldX,
+														GetActorY(0) - self.oldY);
+			//log(f:self.posDiff);
+			self.oldX = GetActorX(0);
+			self.oldY = GetActorY(0);
+			self.stuckTimer++;
+		}
+
+		if( ((GetActorZ(self.goalNode) - GetActorZ(0)) >= (GetActorProperty(0, APROP_MaxStepHeight) - 0.1)) && (Distance(0, self.goalNode) < 64.0) )
+			TDB_PressKey(BT_JUMP);
+
+		return true;
+	}
+
+	if(self.noNodeWait > 0)
+	{
+		DLogf("%n: waiting... %i", 0, self.noNodeWait);
+		self.noNodeWait--;
+		return false;
+	}
+
+	fixed dist, newdist, heightDiff;
+	int node, node2;
+
+	self.goalNode = 0;
+
+	fixed botZ = GetActorZ(0);
+
+	dist = 512.0;
+
+	//copypasting isn't good and all that crap but idc this is faster
+	/*if( (targetPlayer != -1) && (PlayerFollowTID[targetPlayer][0] != 0) )
+	{
+		for(int i_ = 0; i_ <= MAX_NODES; i_++)
+		{
+			node = PlayerFollowTID[targetPlayer][i_];
+			if(node == 0) {break;}
+			newdist = Distance3D(0, node);
+
+			if( ((newdist < dist) && ((GetActorZ(node) - botZ) <= 64.0)) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
+			{
+				dist = newdist;
+				retnode = node;
+			}
+		}
+
+		//Evil hack to use regular nodes if chase nodes are all out of range.
+		//BCC adding gotos was a blessing and a curse.
+		if( (retnode == 0) && (TDB_Nodes[0].tid != 0) )
+			goto FallThruHack;
+	}
+	else*/
+	{
+		//We might end up here either if the PlayerFollowTID array is empty
+		//OR if targetPlayer is already -1, but let's clear it anyway
+		self.lastTargetPlayer = -1;
+
+		//Jump target of the evil hack.
+		FallThruHack:
+		for(int i = 0; i <= MAX_NODES; i++)
+		{
+			node = TDB_Nodes[i].tid;
+			if(!node)
+				break;
+
+			newdist = Distance3D(0, node);
+
+			if( (newdist < dist) && ((GetActorZ(node) - botZ) <= 64.0) && CheckSight(0, node, CSF_NOFAKEFLOORS) &&
+				((TDB_Nodes[i].type != TDB_JUMP_NODE) || !(self.flags & TDB_FLAGS_NOJUMPNODE)) )
+			{
+					dist = newdist;
+					self.goalNode = node;
+			}
+		}
+
+		dist = 256.0;
+
+		// pick a random close node (or don't, if this is a special node)
+		if(self.goalNode && ((TDB_Nodes[self.goalNode].type == TDB_PATH_NODE) || (TDB_Nodes[self.goalNode].type == TDB_BIG_NODE)))
+		{
+			for(int i = 0; i <= MAX_NODES; i++)
+			{
+				node2 = TDB_Nodes[i].tid;
+				if(!node2)
+					break;
+
+				if(node == node2)
+					continue;
+
+				newdist = Distance3D(node, node2);
+
+				if( ((newdist < dist) && ((GetActorZ(node) - botZ) < 96.0)) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
+				{
+					if(!random(-1,2))
+					{
+						dist = newdist;
+						self.goalNode = node;
+					}
+				}
+			}
+		}
+	}
+
+	if(!self.goalNode) {return false;}
+
+	DLogf("%n: goalNode is %i", 0, self.goalNode);
+
+	heightDiff = GetActorZ(self.goalNode) - botZ;
+
+	if(heightDiff > 8.0)
+		TDB_PressKey(BT_MOVEUP);
+	else if(heightDiff < 32.0)
+		TDB_PressKey(BT_MOVEDOWN);
+
+	// sadly no longer works
+	/*#ifdef DEBUG_MODE
+		int oldAccuracy = GetActorProperty(0, APROP_ACCURACY);
+		SetActorProperty(0, APROP_ACCURACY, int(Distance3D(0, self.goalNode)));
+		DecoAction("TDBot_RailVisual");
+		SetActorProperty(0, APROP_ACCURACY, oldAccuracy);
+	#endif*/
+
+	return true;
+}

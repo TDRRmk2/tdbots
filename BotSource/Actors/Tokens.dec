@@ -1,0 +1,11 @@
+Actor BotAttack : Inventory {}
+Actor BotAltAttack : Inventory {}
+Actor BotExplosiveWeapon : Inventory {}
+Actor BotMeleeWeapon : Inventory {}
+Actor BotForceInacc : Inventory {}
+Actor BotCloseRange : Inventory {}
+Actor BotCurrentOrder : Inventory {} //0 = roam, 1 = hold position
+
+Actor TDBot_TryingToTeleport : Inventory {}
+
+Actor TDBots_IsBot : Inventory {}

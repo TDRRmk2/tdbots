@@ -1,0 +1,213 @@
+#!botc 1.1
+#include "botc_defs.bts"
+
+//TDBots MK2: The faster-performing bots
+//
+//(C) 2023 Moises Aguirre / TDRR
+//
+//Licensed under the MIT license
+
+event "Spectating" {changestate(2);}
+
+event "KilledByEnemy" {changestate(3);}
+event "KilledByPlayer" {changestate(3);}
+event "KilledBySelf" {changestate(3);}
+event "KilledByEnvironment" {changestate(3);}
+
+state "stateSpawn": // 0
+	onenter
+	{
+		if (ChatSectionExistsInChatLump("IntroStrings"))
+		{
+			SayFromChatLump("IntroStrings");
+		}
+	}
+	
+	mainloop
+	{
+		changestate(1);
+	}
+	
+	onexit
+	{
+	}
+
+state "stateRoam": // 1
+	var int $buttons;
+	var int $fwmove;
+	var int $sdmove;
+	var int $randchat;
+	var int $tics;
+
+	onenter
+	{
+		$tics = 69;
+	}
+
+	mainloop
+	{
+		$tics++;
+
+		// can't do this only once onenter, otherwise when a round starts, bots will lose all difficulty settings
+		if( ($tics % 70) == 0)
+		{
+			ACS_NamedExecuteWithResult("TDB_BotC_SetSkill", GetEvade(), GetAccuracy(), GetReactionTime(), GetPerception());
+			ACS_NamedExecuteWithResult("TDB_BotC_SetSkill2", GetIntellect());
+		}
+
+		$buttons = ACS_NamedExecuteWithResult("TDB_BotC_GetButtons");
+		$fwmove = ACS_NamedExecuteWithResult("TDB_BotC_GetFwMove");
+		$sdmove = ACS_NamedExecuteWithResult("TDB_BotC_GetSdMove");
+
+		if($fwmove > 0)
+			{MoveForward($fwmove);}
+		else // else if isn't even supported, why
+		{
+			if($fwmove < 0)
+				{MoveBackwards(-$fwmove);}
+			else
+				{StopForwardMovement();}
+		}
+
+		if($sdmove > 0)
+			{MoveRight($sdmove);}
+		else
+		{
+			if($sdmove < 0)
+				{MoveLeft(-$sdmove);}
+			else
+				{StopSidewaysMovement();}
+		}
+
+		if($buttons & 1)
+			{BeginFiringWeapon();}
+		else
+			{StopFiringWeapon();}
+
+		if($buttons & 2)
+			{PressUse();}
+
+		if($buttons & 4)
+			{BeginJumping();}
+		else
+			{StopJumping();}
+
+		if($buttons & 8)
+			{BeginCrouching();}
+		else
+			{StopCrouching();}
+
+		if($buttons & 32)
+			{BeginAltFiringWeapon();}
+		else
+			{StopAltFiringWeapon();}
+
+		if($buttons & 64)
+			{BeginReloading();}
+		else
+			{StopReloading();}
+
+		if($buttons & 128)
+			{BeginZooming();}
+		else
+			{StopZooming();}
+
+		if($buttons & 256)
+			{BeginSpeed();}
+		else
+			{StopSpeed();}
+
+		if($buttons & 262144)
+			{BeginMoveUp();}
+		else
+			{StopMoveUp();}
+
+		if($buttons & 524288)
+			{BeginMoveDown();}
+		else
+			{StopMoveDown();}
+
+		if($buttons & 2097152)
+			{BeginUser(1);}
+		else
+			{StopUser(1);}
+
+		if($buttons & 4194304)
+			{BeginUser(2);}
+		else
+			{StopUser(2);}
+
+		if($buttons & 8388608)
+			{BeginUser(3);}
+		else
+			{StopUser(3);}
+
+		if($buttons & 16777216)
+			{BeginUser(4);}
+		else
+			{StopUser(4);}
+
+
+
+		// weird thing ripped from HUMANBOT's decomp just so bots can chat
+		if (($randchat > 0))
+		{
+			$randchat = ((100 - $randchat) * 7);
+			if (($randchat < 35))
+			{
+				$randchat = 35;
+			}
+
+			if ((Random(0, $randchat) == 0))
+			{
+				if(ChatSectionExistsInChatLump("RoamingStrings"))
+				{
+					if( (Random(0, 100) == 0) && ChatSectionExistsInChatLump("RareRoamingStrings") )
+					{
+						SayFromChatLump("RareRoamingStrings");
+					}
+					else
+					{
+						SayFromChatLump("RoamingStrings");
+					}
+				}
+			}
+		}
+	}
+
+	onexit
+	{
+	}
+
+state "stateSpectating": // 2
+	event "JoinedGame" {
+		changestate(0);
+	}
+
+	onenter
+	{
+		TryToJoinGame();
+	}
+
+	mainloop
+	{
+		delay(280); //Wait about 8 seconds every time
+		TryToJoinGame();
+	}
+	
+	onexit {}
+
+state "stateKilled": // 3
+	event "Respawned"
+	{
+		changestate(1);
+	}
+
+	onenter {}
+
+	mainloop
+	{
+		Respawn();
+	}
+
+	onexit {}

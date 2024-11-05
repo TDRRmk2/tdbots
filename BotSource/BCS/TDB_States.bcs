@@ -1,0 +1,161 @@
+//Return value = state to jump to
+
+//Roam state: bot looks for targets here and walks around following nodes, if
+//there's any.
+private int TDBot_StateRoam (bool justEntered)
+{
+	PRINT_STATENAME;
+	
+	//Should clear the lastTargetPlayer field?
+	if( (self.lastTargetPlayer != -1) && (PlayerFollowTID[self.lastTargetPlayer][0] == 0) )
+	{
+		DLogf("%n: Stopped chasing player #%i", 0, self.lastTargetPlayer);
+
+		self.lastTargetPlayer = -1;
+	}
+
+	DecoAction("TDBot_ClearTarget");
+
+	TDB_BotLook(self.perception);
+
+	if((!CallACS("TDBot_IsTargetAlive", AAPTR_TARGET)) || (!CallACS("TDBot_TargetIsShootable")) || !TDB_CheckTarget())
+	{
+		//Current order is to stand still? If so, don't run any of the movement
+		if(CheckInventory("BotCurrentOrder") || (self.flags & TDB_FLAGS_WAIT))
+			return TDB_STATE_ROAM;
+		
+		if(TDB_FollowNode(self.lastTargetPlayer))
+		{
+			/*fixed velAngle = VectorAngle(GetActorVelX(0), GetActorVelY(0));
+			fixed angleToNode = VectorAngle(GetActorX(self.goalNode) - GetActorX(0), GetActorY(self.goalNode) - GetActorX(0));
+			fixed angDiff = AngleDiff(velAngle, angleToNode);*/
+
+			CallACS("TDB_FaceTarget", GetActorProperty(0, APROP_WaterLevel) == 0, self.goalNode);
+
+			TDB_SetMove(0.0, 1.0);
+
+			//logf("Angle diff is: %f", angDiff);
+			
+			if(TDB_CheckWall() == 2)
+				return TDB_STATE_JUMP;
+			
+			return TDB_STATE_ROAM;
+		}
+	}
+	else
+	{
+		return TDB_STATE_ATTACK;
+	}
+	
+	switch(TDB_CheckWall())
+	{
+		case 1:
+		if(random(0,2) == 0)
+			SetActorAngle(0, RandomPick9(-0.3, -0.17, -0.085, -0.085, 0.085, 0.085, 0.17, 0.3, 0.5));
+		break;
+		
+		case 2:
+		return TDB_STATE_JUMP;
+		
+		default:
+		break;
+	}
+	
+	TDB_SetMove(RandomPick6(-0.125, 0.0, 0.0, 0.0, 0.0, 0.125), 1.0);
+	
+	return TDB_STATE_ROAM;
+}
+
+//Attack state: if the bot has any target, this state runs. Strafes around
+//while aiming at it's target and such. If the mod allows it, then they can also
+//switch weapons mid-fire.
+private int TDBot_StateAttack (bool justEntered)
+{
+	fixed dist;
+	bool followNode;
+
+	PRINT_STATENAME;
+
+	if(justEntered)
+	{
+		// Decide to close in or not
+		self.misc1 = (int)!random(0, 1);
+		
+		// May choose to chase down their target player 67% of the time.
+		#ifndef QCDE_BOT
+		if( (GameType() >= GAME_NET_DEATHMATCH) && random(0,2) )
+		{
+			self.lastTargetPlayer = CallACS("TDBots_ChaseNode");
+			
+			DLogf("%n: chasing player #%i", 0, self.lastTargetPlayer);
+		}
+		#endif
+
+		self.atkTimer = self.reactTime;
+
+		// decide to keep following nodes or not
+		self.misc2 = ( (self.flags & TDB_FLAGS_PREC) || (!self.nonEvadeChance) ) ? 1 : (int)!random(0, self.nonEvadeChance);
+	}
+
+	dist = (fixed)CallACS("TDBot_GetDistToTarget");
+	
+	if(self.flags & TDB_FLAGS_WAIT)
+		self.flags &= ~TDB_FLAGS_WAIT;
+
+	if(self.atkTimer > 0)
+	{
+		self.atkTimer--;
+		return TDB_STATE_ATTACK;
+	}
+
+	if( (!CheckSight(0, GetActorProperty(0, APROP_TARGETTID), CSF_NOFAKEFLOORS)) || (!CallACS("TDBot_IsTargetAlive")) || (!CallACS("TDBot_TargetIsShootable")) )
+	{
+		TDB_ReleaseKey(BT_ATTACK|BT_ALTATTACK);
+		return TDB_STATE_ROAM;
+	}
+	
+	if(canQuickswitch && (random(0, 100) <= 25)) {
+		str bestWeapon = TDB_FindBestWeapon(dist);
+		if (strcmp(bestWeapon, TDB_CurrWeapon.wpnName))
+			SetWeapon(bestWeapon);
+	}
+
+	CallACS("TDB_FaceTarget", 0, 0);
+
+	SetActorAngle(0, GetActorAngle(0) + frandom(-self.inaccuracy, self.inaccuracy));
+	
+	TDB_CallWeaponTick(self.weaponName, dist);
+	
+	if(self.misc2)
+	{
+		if(TDB_FollowNode())
+		{
+			fixed vecAng = VectorAngle(GetActorX(self.goalNode) - GetActorX(0), GetActorY(self.goalNode) - GetActorY(0));
+			fixed botAng = GetActorAngle(0);
+
+			TDB_SetMove(fmod(botAng - vecAng, 1.0), 1.0);
+		}
+	}
+	
+	return TDB_STATE_ATTACK;
+}
+
+//Jump state: if the bot just jumped, this state runs. It doesn't actually
+//handle the jumping, it's just here to not allow jumping again and to make the
+//bot move forward slightly in mid-air.
+private int TDBot_StateJump (bool justEntered)
+{
+	PRINT_STATENAME;
+	
+	if(!justEntered)
+	{
+		if(TDB_OnGround())
+			return TDB_STATE_ROAM;
+	}
+	else
+	{
+		TDB_PressKey(BT_JUMP);
+	}
+	
+	return TDB_STATE_JUMP;
+}

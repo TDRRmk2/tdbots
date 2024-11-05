@@ -1,0 +1,1 @@
+server noarchive bool tdb_show_nodes = false;
