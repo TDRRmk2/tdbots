@@ -1,0 +1,18 @@
+internal enum TDB_LogLevel
+{
+    TDB_LOG_INFO,
+    TDB_LOG_WARNING,
+    TDB_LOG_ERROR
+};
+
+internal str TDB_LogLevelLabels[] =
+{
+    "INFO",
+    "WARNING",
+    "ERROR"
+};
+
+internal void TDB_Log (enum TDB_LogLevel lvl, str message)
+{
+    Log(s:"TDBots ", s:TDB_LogLevelLabels[lvl], s:": ", s:message);
+}

@@ -117,7 +117,7 @@ state "stateRoam": // 1
 		else
 			{StopSpeed();}
 
-		if($buttons & 262144)
+		/*if($buttons & 262144)
 			{BeginMoveUp();}
 		else
 			{StopMoveUp();}
@@ -125,7 +125,7 @@ state "stateRoam": // 1
 		if($buttons & 524288)
 			{BeginMoveDown();}
 		else
-			{StopMoveDown();}
+			{StopMoveDown();}*/
 
 		if($buttons & 2097152)
 			{BeginUser(1);}

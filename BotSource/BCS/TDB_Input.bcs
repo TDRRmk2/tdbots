@@ -57,6 +57,10 @@ Script "_TDB_PressKey_Handle" (int key)
 
 void TDB_PressKey (int key)
 {
+#ifndef QZANDRONUM
+	key = key & ~(BT_MOVEUP|BT_MOVEDOWN);
+#endif
+
 	TDB_HoldKey(key);
 	ACS_NamedExecuteAlways("_TDB_PressKey_Handle", 0, key);
 }

@@ -68,7 +68,7 @@ Script "TDBot_Init" (raw respawning)
 			self.lastAttackBtn = 0;
 			TDB_ReleaseKey(BT_ATTACK|BT_ALTATTACK|BT_ZOOM|BT_RELOAD);
 
-			if(!TDB_Weapons_Check(self.weaponName))
+			if(!TDB_WeaponsMap_Get(TDB_Weapons, self.weaponName))
 				TDB_UpdateWeaponFlags();
 		}
 		

@@ -63,68 +63,7 @@ struct
 	int lessFOV;
 } TDB_Difficulty;
 
-struct HeapArrayT
-{
-	bool init;
-	int size, curr, growSize;
-	ptrT ptr;
-};
-
 int r1, r2;
-
-#define HeapArrayT_Init(name, s) {_##name.init = true; _##name.ptr = malloc(s); _##name.size = s;}
-
-#define HeapArrayT_Set_Defn(type, name, growSize) \
-void name##_Set (int idx, type val) \
-{ \
-	if(!_##name.init) \
-		HeapArrayT_Init(name, growSize); \
- \
-	if( (idx > 0) && (idx < _##name.size) ) \
-		zm[ _##name.ptr + idx] = val; \
-}
-
-#define HeapArrayT_Get_Defn(type, name, growSize) \
-type name##_Get (int idx) \
-{ \
-	return zm[ _##name.ptr + idx ]; \
-}
-
-#define HeapArrayT_Append_Defn(type, name, growSize) \
-void name##_Append (type val) \
-{ \
-	if(!_##name.init) \
-		HeapArrayT_Init(name, growSize); \
- \
-	if(_##name.curr > _##name.size) \
-	{ \
-		int newSize = _##name.size + growSize; \
-		_##name.ptr = realloc(_##name.ptr, newSize); \
-		_##name.size = newSize; \
-	} \
-	zm[ _##name.ptr + _##name.curr ] = val; \
-	_##name.curr++; \
-}
-
-#define HeapArrayT_Size_Defn(type, name, growSize) \
-int name##_Size () \
-{ \
-	return _##name.size; \
-}
-
-#define HeapArrayT_Curr_Defn(type, name, growSize) \
-int name##_Curr () \
-{ \
-	return _##name.curr; \
-}
-
-#define HeapArrayT_Defn(type, name, growSize) \
-HeapArrayT_Size_Defn(type, name, growSize) \
-HeapArrayT_Curr_Defn(type, name, growSize) \
-HeapArrayT_Get_Defn(type, name, growSize) \
-HeapArrayT_Set_Defn(type, name, growSize) \
-HeapArrayT_Append_Defn(type, name, growSize) \
-private HeapArrayT _##name
 
 enum gameT
 {
@@ -201,7 +140,7 @@ enum
 	TDB_FLAGS_NOMOVE = 1 << 3
 };
 
-private struct TDBStateT
+internal struct TDBStateT
 {
 	int function(bool)? func;
 	int delayTime;
@@ -220,4 +159,6 @@ Script "TDBots_InitializeBotStates" OPEN
 	
 	TDBot_States[i].func = TDBot_StateJump;
 	TDBot_States[i++].delayTime = 1;
+
+	TDB_Weapons = TDB_WeaponsMap_New();
 }

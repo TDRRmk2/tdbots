@@ -7,21 +7,25 @@
 #pragma raw define on
 #pragma raw include on
 
+#pragma pointer_space world 0
+
 #library "TDBOTS"
 #import "zcommon.bcs"
-#include "bcsformat.bcs"
-#include "zmemory.bcs"
+#include "libbcs.bcs"
+
+#include "bcsfmt.bcs"
 
 //#define DEBUG_MODE
+//#define QZANDRONUM
 #define QCDE_BOT
 
-using BCSFormat;
-using ZMemory;
+using bcsfmt;
 
 strict namespace
 {
 	#include "TDB_SharedDefs.txt"
 	#include "TDB_Defs.bcs"
+	#include "TDB_Logger.bcs"
 	#include "TDB_ModSupp.bcs"
 	#include "TDB_Input.bcs"
 	#include "TDB_Common.bcs"

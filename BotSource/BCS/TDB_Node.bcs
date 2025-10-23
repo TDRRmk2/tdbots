@@ -1,4 +1,4 @@
-private struct TDB_NodeT
+internal struct TDB_NodeT
 {
 	str className;
 	int tid, type;
@@ -211,7 +211,7 @@ Script "TDBots_ChaseNode"
 		PlayerFollowTID[PlayerNumber()][j] = 0;
 }
 
-private int nodeSpecialTmp;
+internal int nodeSpecialTmp;
 
 Script "TDBots_NodeGetSpecial" (int spc)
 {

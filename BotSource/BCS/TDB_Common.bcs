@@ -222,7 +222,7 @@ bool CheckReplacement (str class)
 	return retval;
 }
 
-private void TDB_UpdateWeaponFlags ()
+internal void TDB_UpdateWeaponFlags ()
 {
 	int TID = UniqueTID();
 			
@@ -488,9 +488,52 @@ bool TDB_FollowPlayer ()
 
 bool TDB_OnGround ()
 {
-	#ifdef QCDE_BOT
-		return CheckSolidFooting(0, 0) != CSF_INAIR;
-	#else
-		// use the 3x3 point check I made for BA
-	#endif
+#ifdef QZANDRONUM
+	return CheckSolidFooting(0, 0) != CSF_INAIR;
+#else
+	fixed velz = GetActorVelZ(0);
+
+	if( (velz < -8.0) || (velz > 0.0) ) {return FALSE;}
+
+	fixed rad = GetActorProperty(0, APROP_Radius);
+
+	fixed x1,y1,z1;
+	fixed x2,y2,z2;
+	fixed dist;
+
+	int tid1 = UniqueTID();
+	int tid2 = UniqueTID();
+
+	SpawnForced("BA_CheckGround", 0.0, 0.0, 0.0, tid1);
+	SpawnForced("BA_CheckGround", 0.0, 0.0, 0.0, tid2);
+
+	for(fixed ix = -rad; ix <= rad; ix += rad)
+	{
+		for(fixed iy = -rad; iy <= rad; iy += rad)
+		{
+			Warp(tid1, ix, iy, 0.0, 0.0, WARPF_TOFLOOR|WARPF_NOCHECKPOSITION|WARPF_ABSOLUTEOFFSET|WARPF_MOVEPTR);
+			Warp(tid2, ix, iy, 0.0, 0.0, WARPF_NOCHECKPOSITION|WARPF_ABSOLUTEOFFSET|WARPF_MOVEPTR);
+
+			x1 = GetActorX(tid1);
+			y1 = GetActorY(tid1);
+			z1 = GetActorZ(tid1);
+
+			x2 = GetActorX(tid2);
+			y2 = GetActorY(tid2);
+			z2 = GetActorZ(tid2);
+
+			dist = z2 - z1;
+			if( (dist >= 0.0) && (dist <= 4.0) )
+			{
+				Thing_Remove(tid1);
+				Thing_Remove(tid2);
+				return true;
+			}
+		}
+	}
+
+	Thing_Remove(tid1);
+	Thing_Remove(tid2);
+	return false;
+#endif
 }

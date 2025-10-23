@@ -2,7 +2,7 @@
 
 //Roam state: bot looks for targets here and walks around following nodes, if
 //there's any.
-private int TDBot_StateRoam (bool justEntered)
+internal int TDBot_StateRoam (bool justEntered)
 {
 	PRINT_STATENAME;
 	
@@ -69,7 +69,7 @@ private int TDBot_StateRoam (bool justEntered)
 //Attack state: if the bot has any target, this state runs. Strafes around
 //while aiming at it's target and such. If the mod allows it, then they can also
 //switch weapons mid-fire.
-private int TDBot_StateAttack (bool justEntered)
+internal int TDBot_StateAttack (bool justEntered)
 {
 	fixed dist;
 	bool followNode;
@@ -143,7 +143,7 @@ private int TDBot_StateAttack (bool justEntered)
 //Jump state: if the bot just jumped, this state runs. It doesn't actually
 //handle the jumping, it's just here to not allow jumping again and to make the
 //bot move forward slightly in mid-air.
-private int TDBot_StateJump (bool justEntered)
+internal int TDBot_StateJump (bool justEntered)
 {
 	PRINT_STATENAME;
 	

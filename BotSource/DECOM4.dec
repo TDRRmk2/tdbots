@@ -5,7 +5,7 @@ changecom(`//')
 //
 //Licensed under the MIT license
 
-define(`DEBUG_MODE', `0')
+define(`DEBUG_MODE', `1')
 
 include(`BCS/TDB_SharedDefs.txt') // shared between DECORATE and BCS
 include(`Actors/Tokens.dec')
