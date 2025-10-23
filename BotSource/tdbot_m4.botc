@@ -1,5 +1,6 @@
 #!botc 1.1
 #include "botc_defs.bts"
+changecom(`//')
 
 //TDBots MK2: The faster-performing bots
 //
@@ -117,7 +118,8 @@ state "stateRoam": // 1
 		else
 			{StopSpeed();}
 
-		/*if($buttons & 262144)
+ifdef(`QZANDRONUM',`dnl
+		if($buttons & 262144)
 			{BeginMoveUp();}
 		else
 			{StopMoveUp();}
@@ -125,7 +127,8 @@ state "stateRoam": // 1
 		if($buttons & 524288)
 			{BeginMoveDown();}
 		else
-			{StopMoveDown();}*/
+			{StopMoveDown();}
+')
 
 		if($buttons & 2097152)
 			{BeginUser(1);}
