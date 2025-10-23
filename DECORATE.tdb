@@ -262,7 +262,7 @@ ACTOR TDBots_TempNode : TDBots_PathNode
 	states
 	{
 	Spawn:
-		TNT1 A 175
+		TBND Z 175
 		Stop
 	}
 }

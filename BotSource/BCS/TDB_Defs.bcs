@@ -51,11 +51,7 @@ enum
 
 global gameT 43:currentGame;
 global bool 44:hasWarnedODM;
-#ifndef QCDE_BOT
 bool canQuickswitch;
-#else
-bool canQuickswitch = true;
-#endif
 bool neverWeaponize;
 
 struct

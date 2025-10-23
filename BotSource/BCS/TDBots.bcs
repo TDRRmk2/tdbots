@@ -15,10 +15,6 @@
 
 #include "bcsfmt.bcs"
 
-//#define DEBUG_MODE
-//#define QZANDRONUM
-#define QCDE_BOT
-
 using bcsfmt;
 
 strict namespace

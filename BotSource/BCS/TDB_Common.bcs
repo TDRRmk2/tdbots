@@ -123,6 +123,19 @@ Script "TDBot_GetDistToTarget"
 	SetResultValue(VectorLength(GetActorX(0) - x, GetActorY(0) - y));
 }
 
+Script "TDBot_CheckSightToTarget"
+{
+	int oldTID = ActivatorTID();
+	int tid = UniqueTID();
+	Thing_ChangeTID(oldTID, tid);
+
+	if(SetActivator(0, AAPTR_TARGET))
+		SetResultValue((raw)CheckSight(tid, 0, CSF_NOFAKEFLOORS));
+
+	SetActivator(tid);
+	Thing_ChangeTID(0, oldTID);
+}
+
 bool LOFResult;
 Script "TDBot_SetLOFResult"
 {
@@ -403,7 +416,7 @@ raw RandomPick9(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5, raw v6, raw v7, 
 
 bool TDB_FollowPlayer ()
 {
-	if(CheckInventory("BotAttack")) {return FALSE;}
+	if(CheckInventory("BotAttack")) {return false;}
 	
 	fixed dist, newdist, angToPlayer;
 	int node;
@@ -411,15 +424,19 @@ bool TDB_FollowPlayer ()
 	int pNum = PlayerNumber();
 
 	int botnum = PlayerNumber();
-	fixed teledist = (fixed)INT_MAX; //fixed(GetCVAR("tdbots_autoteledist"));
+	fixed teledist = bcs::FIXED_MAX;
 	
 	if(teledist > 0.0)
 	{
-		if(teledist < 1024.0) {teledist = 1024.0;}
+		if(teledist < 1024.0)
+			teledist = 1024.0;
+
 		dist = 16384.0;
 	}
 	else
-		{dist = 2048.0;}
+	{
+		dist = 2048.0;
+	}
 	
 	self.goalNode = 0;
 

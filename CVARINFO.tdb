@@ -1,1 +1,1 @@
-server noarchive bool tdb_show_nodes = false;
+server noarchive bool tdb_show_nodes = true;

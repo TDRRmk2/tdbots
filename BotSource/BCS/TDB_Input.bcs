@@ -14,12 +14,6 @@ Script "TDB_BotC_SetSkill" (int evade, int accuracy, int react, int perception)
 		terminate;
 	}
 
-	DLogf("%n's skill settings:", 0);
-	DLogf("eva = %i", evade);
-	DLogf("acc = %i", accuracy);
-	DLogf("reac = %i", react);
-	DLogf("perc = %i", perception);
-
 	self.nonEvadeChance = (-evade) + 8;
 	self.inaccuracy = (accuracy >= 8) ? 0.0 : (fixed((-accuracy) + 8) / 96.0); // 0.0 to 0.125, fixed point angle
 	self.reactTime = ((-react) + 8) * 4; // from instant to up to slightly over two full seconds (attack state ticks every 2 tics)
@@ -29,8 +23,6 @@ Script "TDB_BotC_SetSkill" (int evade, int accuracy, int react, int perception)
 Script "TDB_BotC_SetSkill2" (int intellect)
 {
 	self.initSkills = true;
-
-	DLogf("intel = %i", intellect);
 	self.intellect = intellect;
 }
 

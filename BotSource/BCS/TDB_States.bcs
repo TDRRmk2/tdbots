@@ -82,14 +82,12 @@ internal int TDBot_StateAttack (bool justEntered)
 		self.misc1 = (int)!random(0, 1);
 		
 		// May choose to chase down their target player 67% of the time.
-		#ifndef QCDE_BOT
 		if( (GameType() >= GAME_NET_DEATHMATCH) && random(0,2) )
 		{
 			self.lastTargetPlayer = CallACS("TDBots_ChaseNode");
 			
 			DLogf("%n: chasing player #%i", 0, self.lastTargetPlayer);
 		}
-		#endif
 
 		self.atkTimer = self.reactTime;
 
@@ -108,7 +106,7 @@ internal int TDBot_StateAttack (bool justEntered)
 		return TDB_STATE_ATTACK;
 	}
 
-	if( (!CheckSight(0, GetActorProperty(0, APROP_TARGETTID), CSF_NOFAKEFLOORS)) || (!CallACS("TDBot_IsTargetAlive")) || (!CallACS("TDBot_TargetIsShootable")) )
+	if( (!CallACS("TDBot_CheckSightToTarget")) || (!CallACS("TDBot_IsTargetAlive")) || (!CallACS("TDBot_TargetIsShootable")) )
 	{
 		TDB_ReleaseKey(BT_ATTACK|BT_ALTATTACK);
 		return TDB_STATE_ROAM;

@@ -47,52 +47,55 @@ fixed Distance3D(int tid1, int tid2)
 						GetActorZ(tid2) - GetActorZ(tid1));
 }
 
-#ifndef QCDE_BOT
 bool TDB_PlayerNoding ()
 {
-	if(CurrPNTID > MAX_NODES) {return FALSE;}
+	if(CurrArrayIndex > MAX_NODES)
+		return false;
 	
-	int node, retnode;
+	int node;
 	fixed dist = 132.0;
 	fixed newdist;
 	
-	for(int i_ = 0; i_ <= MAX_NODES; i_++)
+	foreach(auto n; TDB_Nodes)
 	{
-		node = PlayNodeTID[i_];
-		if(node == 0) {break;}
+		node = n.tid;
+		if(node == 0)
+			break;
+
 		newdist = Distance(0, node);
 		
 		if( (newdist < dist) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
-		{
-			return FALSE;
-		}
+			return false;
 	}
-	
-	int TID = UniqueTID();
-	SpawnForced("TDBots_PathNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
-	
-	PlayNodeTID[CurrPNTID] = TID;
-	PlayNodePos[CurrPNTID][0] = int(GetActorX(0));
-	PlayNodePos[CurrPNTID][1] = int(GetActorY(0));
-	PlayNodePos[CurrPNTID][2] = int(GetActorZ(0));
-	PlayNodePos[CurrPNTID][3] = NODE_NORMAL;
-	
-	CurrPNTID++;
-	return TRUE;
+
+	SpawnForced("TDBots_PathNode", GetActorX(0), GetActorY(0), GetActorZ(0));
+
+	return true;
 }
 
 void TDB_CopyNodeTIDs ()
 {
-	if(NodeTID[0] != 0) {return;}
+	if(TDB_Nodes[0].tid != 0) {return;}
 	int node;
 	for(int i; i <= MAX_NODES; i++)
 	{
 		node = PlayNodeTID[i];
 		if(node == 0) {break;}
-		NodeTID[i] = node;
+
+		auto n = TDB_Nodes[i];
+
+		n.className = "TDBots_PathNode";
+		n.tid = node;
+		n.type = 0;
+		n.x = GetActorX(node);
+		n.y = GetActorY(node);
+		n.z = GetActorZ(node);
+		n.angle = GetActorAngle(node);
+		n.noGravity = false;
+
+		SetThingSpecial(node, ACS_ExecuteWithResult, TDB_Touch_Node, i);
 	}
 }
-#endif
 
 Script "TDBots_SetTarget" (int tid)
 {
@@ -101,17 +104,16 @@ Script "TDBots_SetTarget" (int tid)
 	SetPointer(AAPTR_TARGET, tid, AAPTR_DEFAULT, PTROP_NOSAFEGUARDS|PTROP_UNSAFEMASTER);
 }
 
-#ifndef QCDE_BOT
 Script "TDBots_PlayerNoding" ENTER
 {
-	if( (TSMS <= 0) || PlayerIsBot(PlayerNumber()) || (Gametype() <= GAME_NET_COOPERATIVE) ) //|| (!GetCVAR("tdbots_learnfromplayer")) )
+	if( PlayerIsBot(PlayerNumber()) || (Gametype() <= GAME_NET_COOPERATIVE) )
 		terminate;
 
 	DPrintf("learning");
 
-	while( (TSMS <= (35*120) ) && (GetActorProperty(0, APROP_HEALTH) > 0))
+	while( (Timer() <= (35*120) ) && (GetActorProperty(0, APROP_HEALTH) > 0))
 	{
-		delay(8);
+		Delay(8);
 
 		TDB_PlayerNoding();
 	}
@@ -119,27 +121,8 @@ Script "TDBots_PlayerNoding" ENTER
 
 Script "TDBots_PlayerNodingRespawn" RESPAWN
 {
-	ACS_NamedExecuteAlways("TDBots_PlayerNoding",0);
+	ACS_NamedExecuteWithResult("TDBots_PlayerNoding",0);
 }
-
-Script "TDBots_LoadNodes" OPEN
-{
-	delay(1);
-
-	if( (CurrArrayIndex <= 0) ) //|| (!GetCVar("tdbots_learnfromplayer")) )
-		terminate;
-	
-	while(TSMS <= (35*120))
-	{
-		delay(1);
-		TSMS++;
-		if( (TSMS == (35*30) ) || (TSMS == (35*60) ) || (TSMS == 30*90) )
-			TDB_CopyNodeTIDs();
-	}
-
-	TDB_CopyNodeTIDs();
-}
-#endif
 
 Script "TDBots_WalkNoding" (int attach)
 {
@@ -152,7 +135,6 @@ Script "TDBots_WalkNoding" (int attach)
 	}
 	
 	if( (Gametype() > GAME_NET_COOPERATIVE)) {terminate;}
-	//if(!GetCVAR("tdbots_follow")) {terminate;}
 	
 	int TID;
 	
@@ -160,10 +142,13 @@ Script "TDBots_WalkNoding" (int attach)
 	{
 		for(int i = 0; i < MAX_FOLLOW_NODES; i++)
 		{	
-			delay(16);
+			Delay(16);
 			
 			TID = UniqueTID();
 			SpawnForced("TDBots_TempNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
+
+			if(ShowNodes)
+				SetActorProperty(TID, APROP_RenderStyle, STYLE_Normal);
 			
 			PlayerFollowTID[PlayerNumber()][i] = TID;
 			PlayerLocation[PlayerNumber()][0] = GetActorX(0);
@@ -200,6 +185,9 @@ Script "TDBots_ChaseNode"
 			
 			TID = UniqueTID();
 			SpawnForced("TDBots_TempNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
+
+			if(ShowNodes)
+				SetActorProperty(TID, APROP_RenderStyle, STYLE_Normal);
 			
 			PlayerFollowTID[PlayerNumber()][i] = TID;
 			
@@ -221,6 +209,7 @@ Script "TDBots_NodeGetSpecial" (int spc)
 Script "TDBots_Node_Add" (int type, int arg1, int arg2, int arg3)
 {
 	int TID;
+
 	auto node = TDB_Nodes[CurrArrayIndex];
 
 	nodeSpecialTmp = 0;
