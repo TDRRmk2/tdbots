@@ -7,8 +7,6 @@
 #pragma raw define on
 #pragma raw include on
 
-#pragma pointer_space world 0
-
 #library "TDBOTS"
 #import "zcommon.bcs"
 #include "libbcs.bcs"

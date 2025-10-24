@@ -416,12 +416,15 @@ raw RandomPick9(raw v0, raw v1, raw v2, raw v3, raw v4, raw v5, raw v6, raw v7, 
 
 bool TDB_FollowPlayer ()
 {
-	if(CheckInventory("BotAttack")) {return false;}
+	if(CheckInventory("BotAttack"))
+		return false;
+
+	TakeInventory("TDBots_TempNode", 1);
 	
 	fixed dist, newdist, angToPlayer;
 	int node;
 
-	int pNum = PlayerNumber();
+	int pNum;
 
 	int botnum = PlayerNumber();
 	fixed teledist = bcs::FIXED_MAX;
@@ -472,11 +475,10 @@ bool TDB_FollowPlayer ()
 								  PlayerLocation[0][1] - GetActorY(0));
 	}
 	
-	if(dist < 96.0)
+	if(dist < 128.0)
 	{
-		SetActorAngle(0, angToPlayer);
-		TDB_SetMove(0.5, 0.5);
-		return TRUE;
+		TDB_SetMove(0.0, 0.0);
+		return true;
 	}
 	
 	dist = 768.0;
@@ -484,8 +486,8 @@ bool TDB_FollowPlayer ()
 	{
 		node = PlayerFollowTID[pnum][i];
 		if(node == 0) {break;}
-		
-		if(ThingCount(0, node) > 0)
+
+		if(ThingCount(T_NONE, node) > 0)
 		{
 			newdist = Distance(0, node);
 			
@@ -497,10 +499,8 @@ bool TDB_FollowPlayer ()
 		}
 	}
 	
-	if(!self.goalNode) {return false;}
-	
-	//SetPointer(AAPTR_TARGET, retnode, AAPTR_DEFAULT, PTROP_NOSAFEGUARDS|PTROP_UNSAFEMASTER); //return retnode;
-	return true;
+	DLogf("following player, node %i", self.goalNode);
+	return bool(self.goalNode);
 }
 
 bool TDB_OnGround ()

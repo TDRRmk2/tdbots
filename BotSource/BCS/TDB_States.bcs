@@ -22,9 +22,12 @@ internal int TDBot_StateRoam (bool justEntered)
 	{
 		//Current order is to stand still? If so, don't run any of the movement
 		if(CheckInventory("BotCurrentOrder") || (self.flags & TDB_FLAGS_WAIT))
+		{
+			TDB_SetMove(0.0, 0.0);
 			return TDB_STATE_ROAM;
+		}
 		
-		if(TDB_FollowNode(self.lastTargetPlayer))
+		if( (!justEntered) && TDB_FollowNode(self.lastTargetPlayer))
 		{
 			/*fixed velAngle = VectorAngle(GetActorVelX(0), GetActorVelY(0));
 			fixed angleToNode = VectorAngle(GetActorX(self.goalNode) - GetActorX(0), GetActorY(self.goalNode) - GetActorX(0));
@@ -78,9 +81,6 @@ internal int TDBot_StateAttack (bool justEntered)
 
 	if(justEntered)
 	{
-		// Decide to close in or not
-		self.misc1 = (int)!random(0, 1);
-		
 		// May choose to chase down their target player 67% of the time.
 		if( (GameType() >= GAME_NET_DEATHMATCH) && random(0,2) )
 		{
@@ -92,7 +92,9 @@ internal int TDBot_StateAttack (bool justEntered)
 		self.atkTimer = self.reactTime;
 
 		// decide to keep following nodes or not
-		self.misc2 = ( (self.flags & TDB_FLAGS_PREC) || (!self.nonEvadeChance) ) ? 1 : (int)!random(0, self.nonEvadeChance);
+		self.misc1 = ( (self.flags & TDB_FLAGS_PREC) || (!self.nonEvadeChance) ) ? 1 : (int)!random(0, self.nonEvadeChance);
+		if(TDB_CurrWeapon.flags & TDB_CW_MELEE)
+			self.misc1 = 0;
 	}
 
 	dist = (fixed)CallACS("TDBot_GetDistToTarget");
@@ -122,9 +124,7 @@ internal int TDBot_StateAttack (bool justEntered)
 
 	SetActorAngle(0, GetActorAngle(0) + frandom(-self.inaccuracy, self.inaccuracy));
 	
-	TDB_CallWeaponTick(self.weaponName, dist);
-	
-	if(self.misc2)
+	if(self.misc1)
 	{
 		if(TDB_FollowNode())
 		{
@@ -134,6 +134,8 @@ internal int TDBot_StateAttack (bool justEntered)
 			TDB_SetMove(fmod(botAng - vecAng, 1.0), 1.0);
 		}
 	}
+
+	TDB_CallWeaponTick(self.weaponName, dist);
 	
 	return TDB_STATE_ATTACK;
 }

@@ -1,0 +1,4 @@
+addkeysection "TDBots" "tdbots"
+
+alias "tdb_giveorder" "use TDBot_ToggleOrder"
+addmenukey "Give bot order" "tdb_giveorder"

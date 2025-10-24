@@ -45,10 +45,9 @@ enum
 enum {NO_WPN_ID = -1};
 enum : fixed {MAX_RANGE = (fixed)0x7FFFFFFF};
 
-extern int TDB_Address_Weapons(str key);
 extern void TDB_Weapon_New(str wpn, int priority = 0, int flags = 0, str callback = "", int wpnId = 0);
-extern void TDB_Weapon_Pri(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0);
-extern void TDB_Weapon_Alt(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = MAX_RANGE, int flags = 0, fixed altFireChance = 0.5);
+extern void TDB_Weapon_Pri(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = 0.0, int flags = 0);
+extern void TDB_Weapon_Alt(str wpn, str ammo = "", int ammoUse = 1, fixed projSpeed = 0.0, fixed minDist = 0.0, fixed maxDist = 0.0, int flags = 0, fixed altFireChance = 0.0);
 extern void TDB_TargetCallbacks_Append(str val);
 
 extern void TDB_Set_Flags(int pnum, int flags);

@@ -150,8 +150,6 @@ ifdef(`QZANDRONUM',`dnl
 		else
 			{StopUser(4);}
 
-
-
 		// weird thing ripped from HUMANBOT's decomp just so bots can chat
 		if (($randchat > 0))
 		{

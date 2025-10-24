@@ -14,6 +14,12 @@
 	#define DLogf(...)
 #endif
 
+#ifdef __PTR_SPC_MODULE__
+	#define TDB_HEAP_VIS internal
+#else
+	#define TDB_HEAP_VIS
+#endif
+
 //Constants
 enum : int {MAX_PLAYERS = 64};
 enum : int

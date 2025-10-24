@@ -72,6 +72,8 @@ void TDB_ReleaseKey (int key)
 
 void TDB_SetMove (fixed angle, fixed vel)
 {
+	DLogf("called TDB_SetMove");
+
 	if(self.flags & TDB_FLAGS_NOMOVE)
 	{
 		self.fwmove = self.sdmove = 0;

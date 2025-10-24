@@ -73,30 +73,6 @@ bool TDB_PlayerNoding ()
 	return true;
 }
 
-void TDB_CopyNodeTIDs ()
-{
-	if(TDB_Nodes[0].tid != 0) {return;}
-	int node;
-	for(int i; i <= MAX_NODES; i++)
-	{
-		node = PlayNodeTID[i];
-		if(node == 0) {break;}
-
-		auto n = TDB_Nodes[i];
-
-		n.className = "TDBots_PathNode";
-		n.tid = node;
-		n.type = 0;
-		n.x = GetActorX(node);
-		n.y = GetActorY(node);
-		n.z = GetActorZ(node);
-		n.angle = GetActorAngle(node);
-		n.noGravity = false;
-
-		SetThingSpecial(node, ACS_ExecuteWithResult, TDB_Touch_Node, i);
-	}
-}
-
 Script "TDBots_SetTarget" (int tid)
 {
 	if(tid == 0) {terminate;}
@@ -261,7 +237,7 @@ Script "TDB_JumpNode_NoMove"
 	TDBotInfo[PlayerNumber()].flags &= ~TDB_FLAGS_NOMOVE;
 }
 
-Script TDB_Touch_Node (int id)
+Script TDB_Touch_Node (int id, int noRespawn)
 {
 	bool noPickup = false;
 	auto node = TDB_Nodes[id];
