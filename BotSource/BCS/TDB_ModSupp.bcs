@@ -47,13 +47,37 @@ TDB_HEAP_VIS TDB_WeaponsMapT TDB_Weapons;
 
 TDB_WeaponInfoT TDB_CurrWeapon;
 
+internal str[]? TDB_TargetCallbacks;
+
+void TDB_TargetCallbacks_Append(str val)
+{
+	if(!TDB_TargetCallbacks)
+	{
+		TDB_TargetCallbacks = bcs::arrNew(0);
+		TDB_Log(TDB_LOG_ERROR, "Unable to allocate memory for TDB_TargetCallbacks array.");
+		return;
+	}
+
+	int idx = lengthof(TDB_TargetCallbacks);
+
+	str[]? tmp = bcs::arrResize(TDB_TargetCallbacks, idx + 1);
+	if(!tmp)
+	{
+		TDB_Log(TDB_LOG_ERROR, "Unable to allocate memory for growing TDB_TargetCallbacks array.");
+		return;
+	}
+
+	TDB_TargetCallbacks = tmp;
+	TDB_TargetCallbacks[idx] = val;
+}
+
 bool TDB_CheckTarget ()
 {
-/*
 	int botTID, oldBotTID;
 	int enemyTID, oldEnemyTID;
-	int max = TDB_TargetCallbacks_Curr();
-	if(!max)
+	int max;
+
+	if(!TDB_TargetCallbacks)
 		return true;
 
 	void Cleanup (bool cleanEnemy = true)
@@ -78,7 +102,6 @@ bool TDB_CheckTarget ()
 
 	if(!SetActivator(0, AAPTR_TARGET))
 	{
-		DLogf("pingas 1");
 		Cleanup(false);
 		return false;
 	}
@@ -89,15 +112,14 @@ bool TDB_CheckTarget ()
 
 	if(!SetActivator(botTID))
 	{
-		DLogf("pingas 2");
 		Cleanup();
 		return false;
 	}
 
-	for(int i = 0; i < max; i++)
+	foreach(auto callback; TDB_TargetCallbacks)
 	{
-		DLogf("%s: callback %s #%i", __FUNCTION__, TDB_TargetCallbacks_Get(i), i);
-		if(!CallACS(TDB_TargetCallbacks_Get(i), enemyTID, oldEnemyTID))
+		DLogf("%s: callback %s", __FUNCTION__, callback);
+		if(!CallACS(callback, enemyTID, oldEnemyTID))
 		{
 			Cleanup();
 			return false;
@@ -105,7 +127,6 @@ bool TDB_CheckTarget ()
 	}
 
 	Cleanup();
-*/
 	return true;
 }
 
