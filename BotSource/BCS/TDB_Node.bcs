@@ -1,4 +1,20 @@
-internal struct TDB_NodeT
+enum TDB_Node_Members
+{
+	NODE_CLASSNAME,
+	NODE_TID,
+	NODE_TYPE,
+	NODE_X,
+	NODE_Y,
+	NODE_Z,
+	NODE_ANGLE,
+	NODE_NOGRAVITY,
+	NODE_ARG1,
+	NODE_ARG2,
+	NODE_ARG3,
+	NODE_TOTAL
+};
+
+internal struct TDB_Node
 {
 	str className;
 	int tid, type;
@@ -8,6 +24,8 @@ internal struct TDB_NodeT
 	int arg1, arg2, arg3;
 
 } TDB_Nodes[MAX_NODES];
+
+typedef struct TDB_Node TDB_NodeT;
 
 int CurrArrayIndex;
 

@@ -1,61 +1,112 @@
-str NodePropStr[MAX_NODES][MAX_PROPS]; //Raw strings, have to be converted.
-
-int NodeTID[MAX_NODES];
-int CurrArrayIndex;
-
-//Player-generated nodes, then transfered to NodeTID once finished.
-int PlayNodeTID[MAX_NODES];
-int PlayNodePos[MAX_NODES][4];
-int CurrPNTID; //Keep track of current index on above array
-
-//Player following-related stuff.
-int PlayerFollowTID[MAX_PLAYERS][MAX_FOLLOW_NODES];
-fixed PlayerLocation[MAX_PLAYERS][3];
-
-//Time since map start
-int TSMS = -1;
-
-int AmountOfNodes;
-
-//Note: commented log lines are just for debugging, you can uncomment them
-//if you need to.
-function void ProcessNodelist (str string, int version)
+struct ParseCtx
 {
-	//Don't bother doing anything if it's just empty
-	if(strcmp(string, "") == 0) {return;}
+	int pos;
+	str s;
+	bool done;
+};
 
-	//Length of the string passed
-	int stringlength = strlen(string);
+int ParseGetInt (struct ParseCtx module *parse)
+{
+	char c;
+	int ret;
+	bool negate;
+
+	if(parse.s[parse.pos] == '-')
+	{
+		negate = true;
+		parse.pos++;
+	}
+
+	if(parse.done)
+	{
+		TDB_Log(TDB_LOG_ERROR, StrParam(s:"unexpected end of node list."));
+		bcs::exit();
+	}
+
+	while(true)
+	{
+		c = parse.s[parse.pos++];
+
+		if(c == ';')
+		{
+			break;
+		}
+		else if(c == '\0')
+		{
+			parse.done = true;
+			break;
+		}
+
+		if( (c >= '0') && (c <= '9') )
+		{
+			ret = (ret * 10) + (c - '0');
+		}
+		else
+		{
+			TDB_Log(TDB_LOG_ERROR, StrParam(s:"unexpected character ", c:c, s:" while parsing node list."));
+			bcs::exit();
+		}
+	}
+
+	if(negate)
+		ret = -ret;
+
+	return ret;
+}
+
+void ParseNodeCommon (struct ParseCtx module *parse, struct TDB_Node module *n)
+{
+	n.x = ParseGetInt(parse);
+	n.y = ParseGetInt(parse);
+	n.z = ParseGetInt(parse);
+}
+
+void ParseJumpNode (struct ParseCtx module *parse, struct TDB_Node module *n)
+{
+	ParseNodeCommon(parse, n);
+	n.angle = ParseGetInt(parse) * 256;
+	n.arg1 = ParseGetInt(parse);
+	n.arg2 = ParseGetInt(parse);
+}
+
+void function(struct ParseCtx module*, struct TDB_Node module*)& ParseFuncs =
+{
+	ParseNodeCommon,
+	ParseJumpNode,
+	ParseNodeCommon,
+	ParseNodeCommon,
+	ParseNodeCommon
+};
+
+Script "TDB_ProcessNodelist" (str string)
+{
+	static ParseCtx parse;
+	static TDB_NodeT n;
+
+	int stringLen = strlen(string);
+
+	//Don't bother doing anything if it's just empty
+	if(!stringLen)
+		return;
 
 	//StrMid parameters, to copy a full actor name to the StartWeapons array
 	int strmidstart;
 	int strmidend;
 
-	//Keeps track of current character index so i can pass it to strmidstart
+	//Keeps track of current character index so it can be passed to strmidstart
 	//even after restarting it
 	int strmidstart2;
 
 	//Actor name
 	int currentarrayindex;
 
-	int curraxis;
+	int currProperty;
+
 	for(int currchar = 0; currchar <= stringlength; currchar++)
 	{
-		if(version == 0)
-		{
-			if(curraxis > AXIS_Z) {curraxis = AXIS_X;}
-		}
-		else
-		{
-			if(curraxis > NODE_TYPE) {curraxis = AXIS_X;}
-		}
-
-		//If a separator is detected, switch to next actor name and clear the
-		//current string saved in memory.
 		if(currchar == stringlength)
 		{
 			amountofnodes = currentarrayindex;
-			//log(s:strmid(string, strmidstart, strmidend));
 			NodePropStr[currentarrayindex][curraxis] = strmid(string, strmidstart, strmidend);
 			if(version == 0)
 			{
@@ -84,7 +135,6 @@ function void ProcessNodelist (str string, int version)
 			strmidend = 0;
 			//log(s: "strmidstart = ",i:strmidstart);
 		}
-		//If not, just continue storing the actor name.
 		else
 		{
 			strmidend++;
@@ -93,103 +143,6 @@ function void ProcessNodelist (str string, int version)
 		}
 	}
 }
-
-function int StrToInt (str string)
-{
-	//Don't bother doing anything if it's just empty
-	if(strcmp(string, "") == 0) {return 0;}
-
-	//Length of the string passed
-	int stringlength = strlen(string);
-
-	//Actor name and currently stored character
-	int currentarrayindex;
-
-	int storedchar;
-	int storedcharcpy;
-
-	int returnvalue;
-
-	str firstchar = StrLeft(string, 1);
-	for(int currchar = 0; currchar <= stringlength; currchar++)
-	{
-		storedchar = GetChar(string, currchar);
-
-		if( (storedchar >= '0') && (storedchar <= '9') )
-		{returnvalue = (returnvalue*10) + (storedchar-'0');}
-
-		currentarrayindex++;
-	}
-	if(Strcmp(firstchar, "-") == 0)
-	{returnvalue = -returnvalue;}
-	return returnvalue;
-}
-
-//Function from ACSUtils, licensed under the MIT License.
-//Copyright (c) 2016-2017 By Alexander Korshun and the ACSUtils contributors.
-//Originally called ActorDistance2D.
-fixed Distance(int tid1, int tid2)
-{
-	return VectorLength(GetActorX(tid2) - GetActorX(tid1),
-						GetActorY(tid2) - GetActorY(tid1));
-}
-
-bool TDB_PlayerNoding ()
-{
-	if(CurrPNTID > MAX_NODES) {return FALSE;}
-
-	int node, retnode;
-	fixed dist = 132.0;
-	fixed newdist;
-
-	for(int i_ = 0; i_ <= MAX_NODES; i_++)
-	{
-		node = PlayNodeTID[i_];
-		if(node == 0) {break;}
-		newdist = Distance(0, node);
-
-		if( (newdist < dist) && CheckSight(0, node, CSF_NOFAKEFLOORS) )
-		{
-			return FALSE;
-		}
-	}
-
-	int TID = UniqueTID();
-	SpawnForced("TDBots_PathNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
-
-	PlayNodeTID[CurrPNTID] = TID;
-	PlayNodePos[CurrPNTID][0] = int(GetActorX(0));
-	PlayNodePos[CurrPNTID][1] = int(GetActorY(0));
-	PlayNodePos[CurrPNTID][2] = int(GetActorZ(0));
-	PlayNodePos[CurrPNTID][3] = NODE_NORMAL;
-
-	CurrPNTID++;
-	return TRUE;
-}
-
-function void TDB_CopyNodeTIDs ()
-{
-	if(NodeTID[0] != 0) {return;}
-	int node;
-	for(int i; i <= MAX_NODES; i++)
-	{
-		node = PlayNodeTID[i];
-		if(node == 0) {break;}
-		NodeTID[i] = node;
-	}
-}
-
-Script "TDBots_Jump" (int force) //force param for wall jumps and such
-{
-	if( (GetActorVelZ(0) == 0.0) || force )
-	{
-		fixed JumpZ = GetActorProperty(0, APROP_JUMPZ);
-		SetActorVelocity(0, 0.0, 0.0, JumpZ, TRUE, FALSE);
-	}
-}
-
-//I couldn't figure out how to put this into the main script without it looking
-//exceptionally awful, so separated it into a function.
 
 //And oh boy does this code look messy!
 int nodelistVersion;
@@ -227,10 +180,6 @@ function str GetNodelist (bool silent)
 
 Script "TDBots_LoadNodes" OPEN
 {
-	if(!GetCVAR("tdbots_usenodes")) {terminate;}
-
-	//if(!ProcessNodelist(GetNodelist(FALSE), NodelistVersion))
-		//{terminate;}
 	ProcessNodelist(GetNodelist(FALSE), NodelistVersion);
 
 	delay(1);
@@ -297,7 +246,7 @@ Script "TDBots_LoadNodes" OPEN
 		TDB_CopyNodeTIDs();
 	}
 }
-
+/*
 Script "TDBots_DumpLoadedNodes"
 {
 	if(NodeTID[0] == 0) {terminate;}
@@ -321,38 +270,4 @@ Script "TDBots_DumpLoadedNodes"
 
 	Log(s:StrParam(n:PRINTNAME_LEVEL, s:"NodesNew = \"", s:NodeDump, s:"\";"));
 }
-
-Script "TDBots_WalkNoding" (int attach)
-{
-	if( (PlayerIsBot(PlayerNumber())) )
-	{
-		PlayerLocation[PlayerNumber()][0] = 0.0;
-		PlayerLocation[PlayerNumber()][1] = 0.0;
-		PlayerLocation[PlayerNumber()][2] = 0.0;
-		terminate;
-	}
-
-	if( (Gametype() > GAME_NET_COOPERATIVE)) {terminate;}
-	if(!GetCVAR("tdbots_follow")) {terminate;}
-
-	int TID;
-
-	while(GetActorProperty(0, APROP_HEALTH) > 0)
-	{
-		for(int i = 0; i < MAX_FOLLOW_NODES; i++)
-		{
-			delay(16);
-
-			TID = UniqueTID();
-			SpawnForced("TDBots_TempNode", GetActorX(0), GetActorY(0), GetActorZ(0), TID);
-
-			PlayerFollowTID[PlayerNumber()][i] = TID;
-			PlayerLocation[PlayerNumber()][0] = GetActorX(0);
-			PlayerLocation[PlayerNumber()][1] = GetActorY(0);
-			PlayerLocation[PlayerNumber()][2] = GetActorZ(0);
-		}
-	}
-
-	for(int j = 0; j < 2; j++)
-		PlayerLocation[PlayerNumber()][j] = 0.0;
-}
+*/
