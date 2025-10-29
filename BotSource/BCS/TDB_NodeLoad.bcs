@@ -5,6 +5,13 @@ struct ParseCtx
 	bool done;
 };
 
+void ParseInit(struct ParseCtx module *parse, str s)
+{
+	parse.pos = 0;
+	parse.s = s;
+	parse.done = false;
+}
+
 int ParseGetInt (struct ParseCtx module *parse)
 {
 	char c;
@@ -64,7 +71,7 @@ void ParseNodeCommon (struct ParseCtx module *parse, struct TDB_Node module *n)
 void ParseJumpNode (struct ParseCtx module *parse, struct TDB_Node module *n)
 {
 	ParseNodeCommon(parse, n);
-	n.angle = ParseGetInt(parse) * 256;
+	n.angle = fixed(ParseGetInt(parse)) * 256.0;
 	n.arg1 = ParseGetInt(parse);
 	n.arg2 = ParseGetInt(parse);
 }
@@ -85,61 +92,34 @@ Script "TDB_ProcessNodelist" (str string)
 
 	int stringLen = strlen(string);
 
-	//Don't bother doing anything if it's just empty
 	if(!stringLen)
 		return;
 
-	//StrMid parameters, to copy a full actor name to the StartWeapons array
-	int strmidstart;
-	int strmidend;
+	// Currently unused (all previous versions to Mk2 v2 are unsupported),
+	// but may be useful in the future
+	int versionNum = ParseGetInt(parse, string);
 
-	//Keeps track of current character index so it can be passed to strmidstart
-	//even after restarting it
-	int strmidstart2;
+	int type, tid, iters;
 
-	//Actor name
-	int currentarrayindex;
-
-	int currProperty;
-
-	for(int currchar = 0; currchar <= stringlength; currchar++)
+	while(!parse.done)
 	{
-		if(currchar == stringlength)
-		{
-			amountofnodes = currentarrayindex;
-			NodePropStr[currentarrayindex][curraxis] = strmid(string, strmidstart, strmidend);
-			if(version == 0)
-			{
-				NodePropStr[currentarrayindex][NODE_TYPE] = "";
-				currentarrayindex++;
-			}
-			return;
-		}
-		if(GetChar(string, currchar) == ';')
-		{
-			//log(s:strmid(string, strmidstart, strmidend));
-			NodePropStr[currentarrayindex][curraxis] = strmid(string, strmidstart, strmidend);
-			curraxis++;
-			if( (version == 0) && (curraxis > AXIS_Z) )
-			{
-				NodePropStr[currentarrayindex][NODE_TYPE] = "";
-				currentarrayindex++;
-			}
-			else if( (version == 1) && (curraxis > NODE_TYPE) )
-			{
-				currentarrayindex++;
-			}
+		type = ParseGetInt(parse);
 
-			strmidstart = strmidstart2+1; //needs to be AFTER the separator
-			strmidstart2++;
-			strmidend = 0;
-			//log(s: "strmidstart = ",i:strmidstart);
-		}
-		else
+		n.arg1 = 0;
+		n.arg2 = 0;
+		n.arg3 = 0;
+		n.angle = 0.0;
+		tid = UniqueTID();
+
+		ParseFuncs[type](parse, n);
+
+		SpawnForced(TDB_NodeActors[type], n.x, n.y, n.z, tid, n.angle);
+		SetThingSpecial(tid, ACS_ExecuteWithResult, TDB_Touch_Node, n.arg1, n.arg2, n.arg3);
+
+		if(++iters > 128)
 		{
-			strmidend++;
-			strmidstart2++;
-			//log(s: "strmidend = ",i:strmidend);
+			Delay(1);
+			iters = 0;
 		}
 	}
 }
