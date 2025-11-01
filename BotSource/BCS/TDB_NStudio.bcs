@@ -1,178 +1,162 @@
-//The nodelist is assembled on the fly into this value, and saved to a CVAR 
-//whenever needed.
-str NodeList, LastListEntry = "";
-
-int LastNodeTID;
 int NodeAmount;
 int NodeType;
 
-int NodeListVersion = 0;
-
-enum
+str SerializeNodes ()
 {
-	NODE_NORMAL,
-	NODE_JUMP,
-	NODE_PRECISE
-};
+	if(!TDB_Nodes[0].tid)
+		return "";
 
-//Save node to the nodelist, based on TID of the node.
-void SaveToNodeList (int TID)
-{
-	str NewString;
-	fixed x = GetActorX(TID);
-	fixed y = GetActorY(TID);
-	fixed z = GetActorZ(TID);
-	
-	if(NodeListVersion == 0)
-		NewString = StrParam(i:int(x),s:";",i:int(y),s:";",i:int(z),s:";");
-	else
-		NewString = StrParam(i:int(x),s:";",i:int(y),s:";",i:int(z),s:";",i:NodeType,s:";");
-	
-	NodeAmount++;
-	
-	str stringtosave = NodeList + NewString;
-	
-	NodeList = StringToSave;
-	LastListEntry = NewString;
-	LastNodeTID = TID;
-}
-
-//Removes last node placed, and removes it from the nodelist.
-void DeleteLastNode ()
-{
-	if(LastNodeTID == 0) {return;}
-	
-	str NodeListTemp;
-	int LastListLength = StrLen(LastListEntry);
-	int ListLength = StrLen(NodeList);
-	
-	if(ListLength == 0) {return;}
-	if(LastListLength == 0) {return;}
-	
-	Thing_Remove(LastNodeTID);
-	
-	NodeListTemp = StrLeft(NodeList, ListLength-LastListLength);
-	NodeList = NodeListTemp;
-	NodeAmount--;
-	LastNodeTID = 0;
-}
-
-Script "tdbots_chnodetype" (void)
-{
-	NodeType++;
-	if(NodeType > NODE_PRECISE) {NodeType = NODE_NORMAL;}
-	if(NodelistVersion != 0)
-	switch(NodeType)
+	str out;
+	buildmsg(out = StrParam())
 	{
-		case NODE_NORMAL:
-		Print(s:"Node type: Normal (purple)");
-		break;
-		
-		case NODE_JUMP:
-		Print(s:"Node type: Jump (green)");
-		break;
-		
-		case NODE_PRECISE:
-		Print(s:"Node type: Precision (red)");
-		break;
+		Append(i:NODELIST_VERSION, c:';');
+
+		foreach(auto n; TDB_Nodes)
+		{
+			if(!n.tid)
+				break;
+
+			Append(i:n.type, c:';', i:int(n.x), c:';', i:int(n.y), c:';', i:int(n.z), c:';');
+
+			if(n.type == TDB_JUMP_NODE)
+				Append(i:int(n.angle * 256.0), c:';', i:n.arg1, c:';', i:n.arg2, c:';');
+		}
 	}
+
+	// remove last semicolon
+	return StrLeft(out, StrLen(out) - 1);
 }
 
-Script "TDBots_NodeStudio_Startup" (void)
+Script "tdbots_chnodetype"
 {
-	if(PlayerCount() > 1)
-	{Print(s:"Node studio can be only used offline!"); terminate;}
+	static str nodeTypeMessages[] =
+	{
+		"Node type: Normal (purple)",
+		"Node type: Jump (green)",
+		"Node type: Precision (red)",
+		"Node type: Unused",
+		"Node type: Big normal (purple)"
+	};
+
+	NodeType++;
+
+	// currently doesn't work, so skip it
+	if(NodeType == TDB_LIFT_NODE)
+		NodeType++;
+
+	if(NodeType >= TDB_TOTAL_NODES)
+		NodeType = TDB_PATH_NODE;
+
+	Print(s:nodeTypeMessages[NodeType]);
+}
+
+Script "TDBots_NodeStudio_Startup"
+{
+	if(IsNetworkGame() || (PlayerCount() > 1) )
+	{
+		Print(s:"Node studio can be only used in singleplayer!");
+		terminate;
+	}
+
 	if(GetCVAR("sv_freelook") == 1)
-	{Print(s:"Node studio requires freelook!"); terminate;}
+	{
+		Print(s:"Node studio requires freelook!");
+		terminate;
+	}
 	
 	SetHUDSize(640, 480, TRUE);
 	SetFont("BIGFONT");
 	
-	HUDMessage(s:"Press the use key to use version 1\n",
-	s:"Press any other key to use version 0\n",
-	s:"v1 allows use of jump and precision nodes\n",
-	s:"while v0 only has the basic node type";
-	HUDMSG_PLAIN, 13076, CR_YELLOW, 320.0, 240.0, 0.0);
-	
-	delay(16);
-	
-	while(GetPlayerInput(-1, INPUT_BUTTONS) == 0)
-		delay(1);
-	
-	if(GetPlayerInput(-1, INPUT_BUTTONS) == BT_USE)
-		NodeListVersion = 1;
-	else
-		NodeListVersion = 0;
-	
 	HUDMessage(s:"";HUDMSG_PLAIN, 13076, CR_UNTRANSLATED, 0.0, 0.0, 0.0);
 	
 	Print(s:"Welcome to node studio.\nPress Weapon Reload for help with controls");
-	ClearInventory(); Thing_Destroy(0);
+
+	ClearInventory();
+	Thing_Destroy(0);
+
 	ACS_NamedExecuteAlways("TDBots_NodeStudio_InputLoop",0);
 	SetPlayerProperty(0, ON, PROP_FLY);
 	SetPlayerProperty(0, 2, PROP_INVULNERABILITY);
 	SetActorFlag(0, "PICKUP", FALSE);
 	GiveInventory("TDBots_NodeStudio_Editor", 1);
-	
-	//important to fix a Hexen bug
-	NodeList = LastListEntry = "";
 }
 
-Script "TDBots_NodeStudio_InputLoop" (void)
+Script "TDBots_NodeStudio_InputLoop"
 {
 	int buttons;
 	while(TRUE)
 	{
 		buttons = GetPlayerInput(-1, INPUT_BUTTONS);
 		
-		if(buttons & BT_RELOAD) {GiveInventory("TDB_NS_Reload",1);}
-		else 					{TakeInventory("TDB_NS_Reload",1);}
+		if(buttons & BT_RELOAD)
+			GiveInventory("TDB_NS_Reload",1);
+		else
+			TakeInventory("TDB_NS_Reload",1);
 		
-		if(buttons & BT_ZOOM) 	{GiveInventory("TDB_NS_Zoom",1);}
-		else 					{TakeInventory("TDB_NS_Zoom",1);}
+		if(buttons & BT_ZOOM)
+			GiveInventory("TDB_NS_Zoom",1);
+		else
+			TakeInventory("TDB_NS_Zoom",1);
 		
-		delay(1);
+		Delay(1);
 	}
 }
 
-Script "TDBots_NodeStudio_PlaceNode" (void)
+Script "TDBots_NodeStudio_PlaceNode"
 {
-	if(NodeAmount >= 512)
+	if(NodeAmount >= MAX_NODES)
 	{
-		print(s:"Limit of 512 nodes reached.");
+		Print(s:"Limit of ", i:MAX_NODES, s:" nodes reached.");
 		terminate;
 	}
+
+	NodeAmount++;
+
+	fixed angle = GetActorAngle(0) + 0.5;
+	if(angle > 1.0)
+		angle -= 1.0;
 	
-	fixed nodeX = GetActorX(0);
-	fixed nodeY = GetActorY(0);
-	fixed nodeZ = GetActorZ(0);
-	int TID = UniqueTID();
-	
-	/*PrintBold(s:"NodeX = ", i:NodeX);
-	PrintBold(s:"NodeY = ", i:NodeY);
-	PrintBold(s:"NodeZ = ", i:NodeZ);
-	PrintBold(s:"TID = ", i:TID);*/
-	
-	static str FakeNodeActors[] =
-	{
-		"TDBots_NodeStudio_FakeNode",
-		"TDBots_NodeStudio_FakeJumpNode",
-		"TDBots_NodeStudio_FakePreciseNode"
-	};
-	
-	str actorName;
-	
-	if(NodeListVersion == 0)
-		actorName = FakeNodeActors[0];
-	else
-		actorName = FakeNodeActors[NodeType];
-	
-	SpawnForced(actorName, nodeX, nodeY, nodeZ, TID);
-	
-	SaveToNodeList(TID);
+	SpawnForced(TDB_NodeActors[NodeType], GetActorX(0), GetActorY(0), GetActorZ(0), 0, int(angle * 256.0));
 }
 
-Script "TDBots_NodeStudio_Undo" (void) {DeleteLastNode();}
+Script "TDBots_NodeStudio_Delete"
+{
+	int tid, closestID = -1, lastNode = NodeAmount - 1;
+	fixed dist = 128.0, tmpDist;
+	fixed 	x = GetActorX(0),
+			y = GetActorY(0),
+			z = GetActorZ(0);
+
+	foreach(int i; auto n; TDB_Nodes)
+	{
+		tid = n.tid;
+
+		if(!tid)
+			break;
+
+		tmpDist = VectorLength3D(	GetActorX(tid) - x,
+									GetActorY(tid) - y,
+									GetActorZ(tid) - z);
+
+		if(tmpDist < dist)
+		{
+			dist = tmpDist;
+			closestID = i;
+		}
+	}
+
+	if(closestID == -1)
+		return;
+
+	Thing_Remove(TDB_Nodes[closestID].tid);
+
+	if(closestID != lastNode)
+		memcpy(TDB_Nodes[closestID], TDB_Nodes[lastNode]);
+
+	TDB_Nodes[lastNode].tid = 0;
+
+	NodeAmount--;
+}
 
 Script "TDBots_NodeStudio_Help" (void)
 {
@@ -183,39 +167,15 @@ Script "TDBots_NodeStudio_Help" (void)
 	Log(s:"For easy operation of Node Studio.");
 	Log(s:"");
 	Log(s:"Attack/Fire = Place Node on crosshair");
-	Log(s:"Alt Attack = Undo last placed node");
+	Log(s:"Alt Attack = Delete closest node");
 	Log(s:"Weapon Zoom = Save Nodelist");
 	Log(s:"Weapon Ready = These Instructions");
-	Log(s:"Change Node Type = Change node type (v1 only)");
+	Log(s:"Change Node Type = Change node type");
 	Log(s:"The Change node type key is not bound by default, go bind it!");
 }
 
 Script "TDBots_NodeStudio_Save" (void)
 {
-	str MapLmp = StrParam(n:PRINTNAME_LEVEL);
-	str cvartocheck;
-	
-	if(NodeListVersion == 0)
-		cvartocheck = MapLmp + "Nodes";
-	else
-		cvartocheck = MapLmp + "NodesNew";
-		
-	str LastListCharacter;
-	int NodeListLength = StrLen(NodeList);
-	str NodeListToSave;
-	//Print(s:"Saving to .ini file...");
-	
-	NodeListToSave = NodeList;
-	
-	//Chop off the last ; on the list, because it can cause parsing errors.
-	if(NodeListLength > 0)
-	{
-		LastListCharacter = StrRight(NodeList, 1);
-		if(StrCmp(LastListCharacter, ";") == 0)
-		{NodeListToSave = StrLeft(NodeList, NodeListLength-1);}
-	}
-	
-	//SetCVARString(cvartocheck, NodeList);
 	Print(s:"The nodelist has been printed to the console.\nAlong with some instructions.");
 	Log(s:"===START OF HELP===");
 	Log(s:"If you don't have a logfile active,");
@@ -232,7 +192,6 @@ Script "TDBots_NodeStudio_Save" (void)
 	Log(s:"exec nameoffile.txt");
 	Log(s:"====END OF HELP====");
 	Log(s:"===COPY NEXT LINE===");
-	Log(s:"set \"", 
-	s:cvartocheck, s:"\" \"", s:NodeListToSave, s:"\"");
+	Log(s:SerializeNodes());
 	Log(s:"===COPY PREVIOUS LINE==");
 }

@@ -19,18 +19,6 @@ Actor TDBot_WallChecker
 	Height 4
 }
 
-Actor TDB_ReturnArgs : CustomInventory
-{
-	+INVENTORY.AUTOACTIVATE
-	states
-	{
-	Use:
-		TNT1 A 0 ACS_NamedExecuteWithResult("_TDB_ReturnArgs_Set1", args[0], args[1], args[2], args[3])
-		TNT1 A 0 ACS_NamedExecuteWithResult("_TDB_ReturnArgs_Set2", args[4], special)
-		Stop
-	}
-}
-
 Actor TDB_CAF_NOGRAVITY : CustomInventory
 {
 	+INVENTORY.AUTOACTIVATE

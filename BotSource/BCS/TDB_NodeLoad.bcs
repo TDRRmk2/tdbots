@@ -5,14 +5,14 @@ struct ParseCtx
 	bool done;
 };
 
-void ParseInit(struct ParseCtx module *parse, str s)
+internal void ParseInit(struct ParseCtx module *parse, str s)
 {
 	parse.pos = 0;
 	parse.s = s;
 	parse.done = false;
 }
 
-int ParseGetInt (struct ParseCtx module *parse)
+internal int ParseGetInt (struct ParseCtx module *parse)
 {
 	char c;
 	int ret;
@@ -38,7 +38,7 @@ int ParseGetInt (struct ParseCtx module *parse)
 		{
 			break;
 		}
-		else if(c == '\0')
+		else if( (c == '\0') || (c == '\r') || (c == '\n') )
 		{
 			parse.done = true;
 			break;
@@ -50,7 +50,7 @@ int ParseGetInt (struct ParseCtx module *parse)
 		}
 		else
 		{
-			TDB_Log(TDB_LOG_ERROR, StrParam(s:"unexpected character ", c:c, s:" while parsing node list."));
+			TDB_Log(TDB_LOG_ERROR, StrParam(s:"unexpected character ", c:c, s:" (", i:c, s:") while parsing node list."));
 			bcs::exit();
 		}
 	}
@@ -61,43 +61,50 @@ int ParseGetInt (struct ParseCtx module *parse)
 	return ret;
 }
 
-void ParseNodeCommon (struct ParseCtx module *parse, struct TDB_Node module *n)
+internal void ParseNodeCommon (struct ParseCtx module *parse, struct TDB_Node module *n)
 {
-	n.x = ParseGetInt(parse);
-	n.y = ParseGetInt(parse);
-	n.z = ParseGetInt(parse);
+	n.x = fixed(ParseGetInt(parse));
+	n.y = fixed(ParseGetInt(parse));
+	n.z = fixed(ParseGetInt(parse));
 }
 
-void ParseJumpNode (struct ParseCtx module *parse, struct TDB_Node module *n)
+internal void ParseJumpNode (struct ParseCtx module *parse, struct TDB_Node module *n)
 {
 	ParseNodeCommon(parse, n);
-	n.angle = fixed(ParseGetInt(parse)) * 256.0;
+	n.angle = fixed(ParseGetInt(parse)) / 256.0;
 	n.arg1 = ParseGetInt(parse);
 	n.arg2 = ParseGetInt(parse);
 }
 
-void function(struct ParseCtx module*, struct TDB_Node module*)& ParseFuncs =
+internal struct
 {
-	ParseNodeCommon,
-	ParseJumpNode,
-	ParseNodeCommon,
-	ParseNodeCommon,
-	ParseNodeCommon
+	void function(struct ParseCtx module*, struct TDB_Node module*)? f;
+} ParseFuncs[TDB_TOTAL_NODES] =
+{
+	{ParseNodeCommon},
+	{ParseJumpNode},
+	{ParseNodeCommon},
+	{ParseNodeCommon},
+	{ParseNodeCommon}
 };
 
-Script "TDB_ProcessNodelist" (str string)
+Script "TDB_ProcessNodelist" (raw stringIn)
 {
-	static ParseCtx parse;
+	static struct ParseCtx parse;
 	static TDB_NodeT n;
+
+	str string = stringIn;
 
 	int stringLen = strlen(string);
 
 	if(!stringLen)
 		return;
 
+	ParseInit(parse, string);
+
 	// Currently unused (all previous versions to Mk2 v2 are unsupported),
 	// but may be useful in the future
-	int versionNum = ParseGetInt(parse, string);
+	int versionNum = ParseGetInt(parse);
 
 	int type, tid, iters;
 
@@ -111,10 +118,12 @@ Script "TDB_ProcessNodelist" (str string)
 		n.angle = 0.0;
 		tid = UniqueTID();
 
-		ParseFuncs[type](parse, n);
+		ParseFuncs[type].f(parse, n);
 
-		SpawnForced(TDB_NodeActors[type], n.x, n.y, n.z, tid, n.angle);
-		SetThingSpecial(tid, ACS_ExecuteWithResult, TDB_Touch_Node, n.arg1, n.arg2, n.arg3);
+		SpawnForced(TDB_NodeActors[type], n.x, n.y, n.z, tid, int(n.angle * 256.0));
+		SetThingSpecial(tid, 0, n.arg1, n.arg2, n.arg3, 0);
+
+		NodeAmount++;
 
 		if(++iters > 128)
 		{
@@ -124,130 +133,23 @@ Script "TDB_ProcessNodelist" (str string)
 	}
 }
 
-//And oh boy does this code look messy!
-int nodelistVersion;
-function str GetNodelist (bool silent)
-{
-	str mapLmp = StrParam(n:PRINTNAME_LEVEL);
-	str cvarToCheck = StrParam(s:MapLmp, s:"NodesNew");
-	str strToProcess = StrParam(l:cvartocheck);
-
-	if(StrToProcess == cvartocheck)
-	{
-		cvarToCheck = StrParam(s:mapLmp, s:"Nodes");
-		strToProcess = StrParam(l:cvartocheck);
-
-		if(strToProcess == cvarToCheck)
-		{
-			return "";
-		}
-		else
-		{
-			nodelistVersion = 0;
-			if(!silent)
-				Log(s:"Nodes found, loading...");
-		}
-	}
-	else
-	{
-		nodelistVersion = 1;
-		if(!silent)
-			Log(s:"Nodes found, loading...");
-	}
-
-	return strToProcess;
-}
-
 Script "TDBots_LoadNodes" OPEN
 {
-	ProcessNodelist(GetNodelist(FALSE), NodelistVersion);
+	str lumpPath = "tdbots/nodes/" + StrParam(n:PRINTNAME_LEVEL) + ".nod";
+	int lump = LumpOpen(lumpPath, -1, LUMP_OPEN_FULLPATH);
 
-	delay(1);
+	if(lump == -1)
+		return;
 
-	int TID;
-	while(CurrArrayIndex <= amountofnodes)
+	str data = LumpReadString(lump, 0);
+
+	if(!StrLen(data))
 	{
-		if((int)NodePropStr[CurrArrayIndex][AXIS_X] != 0)
-		{
-			TID = UniqueTID();
-
-			switch(StrToInt(NodePropStr[CurrArrayIndex][NODE_TYPE]))
-			{
-				case NODE_NORMAL:
-				SpawnForced("TDBots_PathNode",
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_X])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Y])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Z])), TID);
-				break;
-
-				case NODE_JUMP:
-				SpawnForced("TDBots_JumpNode",
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_X])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Y])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Z])), TID);
-				break;
-
-				case NODE_PRECISE:
-				SpawnForced("TDBots_PrecisionNode",
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_X])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Y])),
-				fixed(StrToInt(NodePropStr[CurrArrayIndex][AXIS_Z])), TID);
-				break;
-
-				default:
-				log(s:"Unknown node type ", s:NodePropStr[CurrArrayIndex][NODE_TYPE]);
-			}
-
-			NodeTID[CurrArrayIndex] = TID;
-
-			CurrArrayIndex++;
-			delay(1);
-		}
-		else
-		{
-			break;
-		}
+		TDB_Log(TDB_LOG_ERROR, StrParam(s:"Could not read lump ", s:lumpPath));
+		return;
 	}
 
-	if(currarrayindex != 0)
-	{
-		Log(i: currarrayindex, s:" Nodes fully loaded.");
-		Log(s:"Nodelist version: ",i: NodelistVersion);
-	}
-	else if(GetCVAR("tdbots_learnfromplayer"))
-	{
-		while(TSMS <= (35*120))
-		{
-			delay(1);
-			TSMS++;
-			if( (TSMS == (35*30) ) || (TSMS == (35*60) ) || (TSMS == 30*90) )
-				TDB_CopyNodeTIDs();
-		}
-		TDB_CopyNodeTIDs();
-	}
+	Delay(1);
+
+	ACS_NamedExecuteWithResult("TDB_ProcessNodelist", data);
 }
-/*
-Script "TDBots_DumpLoadedNodes"
-{
-	if(NodeTID[0] == 0) {terminate;}
-
-	str NodeDump = "";
-	int currtid;
-	for(int i; i < MAX_NODES; i++)
-	{
-		currtid = PlayNodeTID[i];
-		if(currtid == 0) {break;}
-
-		NodeDump = StrParam(s:NodeDump, i:PlayNodePos[i][0], s:";", i:PlayNodePos[i][1], s:";", i:PlayNodePos[i][2], s:";", i:PlayNodePos[i][3], s:";");
-		if( (i % 128) == 0) {delay(1);}
-	}
-
-	//cuts the last ; off from the string
-	if(GetChar(NodeDump, StrLen(NodeDump)-1) == ';')
-	{
-		NodeDump = StrLeft(NodeDump, StrLen(NodeDump)-1);
-	}
-
-	Log(s:StrParam(n:PRINTNAME_LEVEL, s:"NodesNew = \"", s:NodeDump, s:"\";"));
-}
-*/

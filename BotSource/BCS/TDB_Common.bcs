@@ -39,76 +39,31 @@ void TDB_SetActorFlag (int tid, str flag, bool e)
 	SetActorProperty(tid, APROP_Accuracy, oldAccuracy);
 }
 
-int DecReturn[6];
-void TDB_CallDecorate (int tid, str name, int arg1 = 0, int arg2 = 0, int arg3 = 0, int arg4 = 0, int arg5 = 0, int arg6 = 0)
-{
-	static int tmpArgs[6];
-
-	if(tid)
-		GiveActorInventory(tid, "TDB_ReturnArgs", 1);
-	else
-		GiveInventory("TDB_ReturnArgs", 1);
-
-	memcpy(tmpArgs, DecReturn);
-
-	if(tid)
-		GiveActorInventory(tid, name, 1);
-	else
-		GiveInventory(name, 1);
-
-	SetThingSpecial(tid, tmpArgs[5], tmpArgs[0], tmpArgs[1], tmpArgs[2], tmpArgs[3], tmpArgs[4]);
-}
-
-Script "_TDB_ReturnArgs_Set1" (int arg1, int arg2, int arg3, int arg4)
-{
-	DecReturn[0] = arg1;
-	DecReturn[1] = arg2;
-	DecReturn[2] = arg3;
-	DecReturn[3] = arg4;
-}
-
-Script "_TDB_ReturnArgs_Set2" (int arg5, int spec)
-{
-	DecReturn[4] = arg5;
-	DecReturn[5] = spec;
-}
-
 Script "TDBot_TargetIsNode"
 {
 	if(!SetActivator(0, AAPTR_TARGET))
-	{
-		SetResultValue(0);
-		terminate;
-	}
+		return false;
 
-	SetResultValue(CheckInventory("TDBots_IDoExist"));
+	return CheckInventory("TDBots_IDoExist");
 }
 
 Script "TDBot_CheckPointer" (int ptr)
 {
-	SetResultValue((int)SetActivator(0, ptr));
+	return SetActivator(0, ptr);
 }
 
 Script "TDBot_IsTargetAlive"
 {
-	if(!SetActivator(0, AAPTR_TARGET))
-	{
-		SetResultValue(0);
-		terminate;
-	}
+	if( (!SetActivator(0, AAPTR_TARGET)) || CheckInventory("TDBots_IDoExist") )
+		return false;
 	
-	SetResultValue((int)((GetActorProperty(0, APROP_HEALTH) > 0) && !PlayerIsSpectator(PlayerNumber())));
-	if(CheckInventory("TDBots_IDoExist"))
-		SetResultValue(0);
+	return (GetActorProperty(0, APROP_HEALTH) > 0) && !PlayerIsSpectator(PlayerNumber());
 }
 
 Script "TDBot_TargetIsShootable"
 {
 	if(!SetActivator(0, AAPTR_TARGET))
-	{
-		SetResultValue(0);
-		terminate;
-	}
+		return false;
 
 	SetResultValue((int)CheckFlag(0, "SHOOTABLE"));
 }
@@ -120,7 +75,7 @@ Script "TDBot_GetDistToTarget"
 	
 	SetActivator(0, AAPTR_TARGET);
 	
-	SetResultValue(VectorLength(GetActorX(0) - x, GetActorY(0) - y));
+	return VectorLength(GetActorX(0) - x, GetActorY(0) - y);
 }
 
 Script "TDBot_CheckSightToTarget"
@@ -553,4 +508,35 @@ bool TDB_OnGround ()
 	Thing_Remove(tid2);
 	return false;
 #endif
+}
+
+str StrToLower (str in)
+{
+	int inLen = StrLen(in);
+	char c;
+	str out;
+
+	buildmsg(out = StrParam())
+	{
+		for(int i = 0; i < inLen; i++)
+		{
+			c = in[i];
+			if( (c >= 'A') && (c <= 'Z') )
+				Append(c:c - 32);
+			else
+				Append(c:c);
+		}
+	}
+
+	return out;
+}
+
+fixed VectorLength3D (fixed x, fixed y, fixed z)
+{
+	return VectorLength(VectorLength(x, y), z);
+}
+
+Script "TDB_DumpHeap"
+{
+	bcs::allocDump();
 }

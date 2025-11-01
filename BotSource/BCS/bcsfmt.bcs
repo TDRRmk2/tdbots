@@ -11,7 +11,7 @@ strict namespace bcsfmt {
 
 internal raw __printf_params_array[16];
 
-#if __LINE__
+#ifdef __LINE__
 	#define __LIBBCS_PRINTF_IMPL() \
 	__printf_params_array[0] = i1; \
 	__printf_params_array[1] = i2; \

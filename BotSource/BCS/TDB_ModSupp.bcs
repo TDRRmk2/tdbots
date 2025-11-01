@@ -52,11 +52,7 @@ internal str[]? TDB_TargetCallbacks;
 void TDB_TargetCallbacks_Append(str val)
 {
 	if(!TDB_TargetCallbacks)
-	{
 		TDB_TargetCallbacks = bcs::arrNew(0);
-		TDB_Log(TDB_LOG_ERROR, "Unable to allocate memory for TDB_TargetCallbacks array.");
-		return;
-	}
 
 	int idx = lengthof(TDB_TargetCallbacks);
 
@@ -254,7 +250,6 @@ void TDB_CallWeaponTick(str wpn, fixed dist)
 
 	if(btns & BT_FORWARD)
 	{
-		Log(s:"goin forward");
 		if(!random(0, self.nonEvadeChance))
 			TDB_SetMove(0.0, 1.0);
 		else
@@ -452,7 +447,7 @@ Script TDB_DEFAULTWPNTICK (raw dist, int attackBtn)
 	else if( (flags & TDB_CW_MELEE) && (dist >= maxDist) )
 		btns |= BT_FORWARD;
 
-	SetResultValue(btns);
+	return btns;
 }
 
 Script "TDB_Weapons_Print" (void)
@@ -482,9 +477,4 @@ Script "TDB_Weapons_Print" (void)
 		Log(s:"flagsAlt = ", i:this.flagsAlt);
 		Log(s:"altFireChance = ", i:this.altFireChance);
 	}
-}
-
-Script "TDB_DumpHeap" (void)
-{
-	bcs::allocDump();
 }

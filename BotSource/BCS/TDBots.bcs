@@ -7,13 +7,14 @@
 #pragma raw define on
 #pragma raw include on
 
+#define LIBBCS_FATAL_ALLOC_ERROR
+
 #library "TDBOTS"
 #import "zcommon.bcs"
 #include "libbcs.bcs"
 
 #include "bcsfmt.bcs"
 
-using bcs: char;
 using bcsfmt;
 
 strict namespace
@@ -26,5 +27,7 @@ strict namespace
 	#include "TDB_Common.bcs"
 	#include "TDB_States.bcs"
 	#include "TDB_Node.bcs"
+	#include "TDB_NodeLoad.bcs"
+	#include "TDB_NStudio.bcs"
 	#include "TDB_Init.bcs"
 }

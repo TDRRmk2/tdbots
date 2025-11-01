@@ -39,9 +39,7 @@ enum
 
 enum
 {
-	NODE_NORMAL,
-	NODE_JUMP,
-	NODE_PRECISE
+	NODELIST_VERSION = 0
 };
 
 //Macros
@@ -146,21 +144,14 @@ internal struct TDBStateT
 {
 	int function(bool)? func;
 	int delayTime;
-} TDBot_States[TDB_NUMSTATES];
-
-Script "TDBots_InitializeBotStates" OPEN
+} TDBot_States[TDB_NUMSTATES] =
 {
-	//static initialization can't be used, as it breaks references on map arrays
-	//also, rip, you can't use brackets to fill out the struct in one go :(
-	int i;
-	TDBot_States[i].func = TDBot_StateRoam;
-	TDBot_States[i++].delayTime = 3;
-	
-	TDBot_States[i].func = TDBot_StateAttack;
-	TDBot_States[i++].delayTime = 2;
-	
-	TDBot_States[i].func = TDBot_StateJump;
-	TDBot_States[i++].delayTime = 1;
+	{TDBot_StateRoam, 3},
+	{TDBot_StateAttack, 2},
+	{TDBot_StateJump, 1}
+};
 
+Script "TDBots_InitializeWeaponsMap" OPEN
+{
 	TDB_Weapons = TDB_WeaponsMap_New();
 }

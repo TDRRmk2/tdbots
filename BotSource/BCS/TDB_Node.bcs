@@ -9,7 +9,7 @@ internal struct TDB_Node
 
 } TDB_Nodes[MAX_NODES];
 
-typedef struct TDB_Node TDB_NodeT;
+internal typedef struct TDB_Node TDB_NodeT;
 
 int CurrArrayIndex;
 
@@ -507,4 +507,9 @@ bool TDB_FollowNode (int targetPlayer = -1)
 	#endif*/
 
 	return true;
+}
+
+Script "TDBots_DumpLoadedNodes"
+{
+	SerializeNodes();
 }

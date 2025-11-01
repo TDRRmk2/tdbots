@@ -28,17 +28,17 @@ Script "TDB_BotC_SetSkill2" (int intellect)
 
 Script "TDB_BotC_GetButtons"
 {
-	SetResultValue(self.buttons);
+	return self.buttons;
 }
 
 Script "TDB_BotC_GetFwMove"
 {
-	SetResultValue(self.fwmove);
+	return self.fwmove;
 }
 
 Script "TDB_BotC_GetSdMove"
 {
-	SetResultValue(self.sdmove);
+	return self.sdmove;
 }
 
 Script "_TDB_PressKey_Handle" (int key)

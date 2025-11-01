@@ -2,3 +2,10 @@ addkeysection "TDBots" "tdbots"
 
 alias "tdb_giveorder" "use TDBot_ToggleOrder"
 addmenukey "Give bot order" "tdb_giveorder"
+
+alias "tdb_dumpnodes" "pukename TDBots_DumpLoadedNodes"
+
+alias "tdb_nodestudio" "pukename TDBots_NodeStudio_Startup"
+
+addmenukey "Change node type" "tdbots_changetype"
+alias tdbots_changetype "pukename tdbots_chnodetype"

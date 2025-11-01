@@ -214,11 +214,12 @@ ACTOR TDBots_BigPathNode : TDBots_PathNode
 
 	Radius 40
 	Height 64
+	Scale 6.0
 	states
 	{
 	Spawn:
-		TBND C 0
-		TBND C -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_BIG_NODE)
+		TBND B 0
+		TBND B -1 ACS_NamedExecuteWithResult("TDBots_Node_Add", TDB_BIG_NODE)
 		Stop
 	}
 }
@@ -228,7 +229,7 @@ ACTOR TDBots_TempNode : TDBots_PathNode
 	states
 	{
 	Spawn:
-		TBND Z 175
+		TNT1 A 175
 		Stop
 	}
 }
