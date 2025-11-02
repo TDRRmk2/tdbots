@@ -93,6 +93,8 @@ Script "TDB_ProcessNodelist" (raw stringIn)
 	static struct ParseCtx parse;
 	static TDB_NodeT n;
 
+	SetResultValue(0);
+
 	str string = stringIn;
 
 	int stringLen = strlen(string);
@@ -131,6 +133,8 @@ Script "TDB_ProcessNodelist" (raw stringIn)
 			iters = 0;
 		}
 	}
+
+	return 1;
 }
 
 Script "TDBots_LoadNodes" OPEN
@@ -151,5 +155,9 @@ Script "TDBots_LoadNodes" OPEN
 
 	Delay(1);
 
-	ACS_NamedExecuteWithResult("TDB_ProcessNodelist", data);
+	if(ACS_NamedExecuteWithResult("TDB_ProcessNodelist", data))
+	{
+		Delay(2);
+		ACS_NamedExecuteWithResult("TDB_LinkNodes");
+	}
 }

@@ -1,3 +1,9 @@
+internal struct TDB_NodeLink
+{
+	fixed cost;
+	struct TDB_Node? node;
+} TDB_NodeLink_Empty;
+
 internal struct TDB_Node
 {
 	str className;
@@ -6,6 +12,7 @@ internal struct TDB_Node
 	fixed angle;
 	bool noGravity;
 	int arg1, arg2, arg3;
+	struct TDB_NodeLink[]? links;
 
 } TDB_Nodes[MAX_NODES];
 
@@ -507,6 +514,39 @@ bool TDB_FollowNode (int targetPlayer = -1)
 	#endif*/
 
 	return true;
+}
+
+Script "TDB_LinkNodes"
+{
+	enum : fixed {MAX_DIST = 1024.0};
+	int ntid, insertAt;
+	fixed dist;
+
+	foreach(auto n; TDB_Nodes)
+	{
+		if(!n.tid)
+			break;
+
+		ntid = n.tid;
+
+		foreach(auto ln; TDB_Nodes)
+		{
+			if(!ln.tid)
+				break;
+
+			dist = Distance(ntid, ln.tid);
+			if( (!CheckSight(ntid, ln.tid, CSF_NOFAKEFLOORS)) || (dist > MAX_DIST) )
+				continue;
+
+			if(!n.links)
+				n.links = bcs::arrNew(0, lengthof(TDB_NodeLink_Empty));
+
+			insertAt = lengthof(n.links);
+			n.links = bcs::arrResize(n.links, insertAt + 1, lengthof(TDB_NodeLink_Empty));
+			n.links[insertAt].node = ln;
+			n.links[insertAt].cost = (-(dist / MAX_DIST)) + 1.0;
+		}
+	}
 }
 
 Script "TDBots_DumpLoadedNodes"

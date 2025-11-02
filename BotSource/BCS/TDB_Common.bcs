@@ -536,6 +536,198 @@ fixed VectorLength3D (fixed x, fixed y, fixed z)
 	return VectorLength(VectorLength(x, y), z);
 }
 
+enum
+{
+	WIDTH = 160,
+	HEIGHT = 120
+};
+
+void HudDrawLine (int x0, int y0, int x1, int y1)
+{
+    int dx = abs(x1 - x0);
+    int sx = x0 < x1 ? 1 : -1;
+    int dy = -abs(y1 - y0);
+    int sy = y0 < y1 ? 1 : -1;
+    int error = dx + dy;
+
+    int i;
+
+    while(true)
+    {
+		//if(!((++i) % 2))
+			//HudMessage(s:"A"; HUDMSG_PLAIN|HUDMSG_LAYER_UNDERHUD|HUDMSG_ALPHA, 0, CR_UNTRANSLATED, fixed(x0) + 0.1, fixed(y0) + 0.1, 0.03, 0.5);
+		if( ((x0 > 0) && (x0 < WIDTH)) && ((y0 > 0) && (y0 < HEIGHT)) )
+			nodeLinkBuf[y0 * WIDTH + x0] = 'A';
+		else
+			return;
+
+
+        int e2 = 2 * error;
+        if(e2 >= dy)
+        {
+            if(x0 == x1)
+				break;
+            error = error + dy;
+            x0 = x0 + sx;
+        }
+        if(e2 <= dx)
+        {
+            if(y0 == y1)
+				break;
+            error = error + dx;
+            y0 = y0 + sy;
+        }
+    }
+}
+
+char nodeLinkBuf[WIDTH*HEIGHT];
+
+bool TWorldToViewCoord(int tid, int hudX, int hudY)
+{
+	// Translated point coordinates.
+	fixed x = GetActorX(tid) - GetActorX(0);
+	fixed y = GetActorY(tid) - GetActorY(0);
+	fixed z = GetActorZ(tid) - (GetActorZ(0) + GetActorViewHeight(0));
+	fixed camAng = GetActorAngle(0), camPit = GetActorPitch(0);
+
+	fixed rx, ry, rz;
+	fixed s, c;
+
+	// Rotate around Z axis.
+	s = sin(-camAng);
+	c = cos(-camAng);
+	rx = FixedMul(x, c) - FixedMul(y, s);
+	ry = FixedMul(x, s) + FixedMul(y, c);
+	x = rx; y = ry;
+
+	// Rotate around Y axis.
+	s = sin(camPit);
+	c = cos(camPit);
+	rx = FixedMul(x, c) - FixedMul(z, s);
+	rz = FixedMul(x, s) + FixedMul(z, c);
+	x = rx; z = rz;
+
+	// Check if point is behind the camera.
+	if (x <= 0.0)
+		return false;
+
+	// I don't know what this factor means, but it fixes positioning bugs.
+	fixed yFactor = 1.6;
+
+	// Half heights.
+	fixed hw = fixed(hudX / 2);
+	fixed hh = fixed(hudY / 2);
+
+	// Project point.
+	fixed drawX = -FixedDiv(y, x);
+	fixed drawY = -FixedDiv(z, x);
+
+	// Postprocess projected point.
+	drawX += /*$R3D_2DOffsetX +*/ hw + FixedMul(hw, drawX);
+	drawY += /*$R3D_2DOffsetY +*/ hh + FixedMul(FixedMul(hh, yFactor), drawY);
+
+	r1 = int(drawX);
+	r2 = int(drawY);
+
+	return true;
+}
+
+/*bool TWorldToViewCoord(int tid, int hudX, int hudY)
+{
+	fixed dist, pitch, startPitch = GetActorPitch(0);
+
+	fixed x = GetActorX(tid) - GetActorX(0);
+	fixed y = GetActorY(tid) - GetActorY(0);
+
+	fixed vang = VectorAngle(x,y);
+	fixed angle = (raw)(vang - GetActorAngle(0) + 1.0) % 1.0;
+
+	if(((raw)(vang+0.125)%0.5) > 0.25) dist = FixedDiv(y, sin(vang));
+	else dist = FixedDiv(x, cos(vang));
+
+	if(angle < 0.23 || angle > 0.85)
+	{
+		if(startPitch >= -0.5 && startPitch <= 0.5)
+		{
+			pitch = VectorAngle(dist, GetActorZ(tid) - (GetActorZ(0) + GetActorViewHeight(0)));
+			pitch += (raw)FixedMul(startPitch, 1.2) % 1.0;
+
+			if(fixed(hudX/2) * Sin(angle) != 0.0 && Cos(angle) != 0.0 && fixed(hudX/2) * sin(pitch) != 0.0 && cos(pitch) != 0.0)
+			{
+				r1 = int(fixed(hudX/2) - (fixed(hudX/2) * sin(angle) / cos(angle)));
+				r2 = int(fixed(hudY/2) - (fixed(hudX/2) * sin(pitch) / cos(pitch)));
+
+				//x += xOffset;
+				//y += yOffset;
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}*/
+
+Script "TDB_DrawNodeLinks" ENTER
+{
+	Delay(16);
+
+	SetHudClipRect(0, 0, 0, 0, WIDTH);
+	SetFont("TDB_PIX_FONT");
+
+	int ntid, lntid;
+	int x0, y0, x1, y1;
+	while(true)
+	{
+		for(int i = 0; i < lengthof(nodeLinkBuf); i++)
+			nodeLinkBuf[i] = 'B';
+
+		foreach(auto n; TDB_Nodes)
+		{
+			int ntid = n.tid;
+			if(!ntid)
+				break;
+
+			if(!CheckSight(0, ntid, CSF_NOFAKEFLOORS))
+				continue;
+
+			foreach(auto ln; n.links)
+			{
+				int lntid = ln.node.tid;
+				if(!lntid)
+					break;
+
+				if(!CheckSight(0, lntid, CSF_NOFAKEFLOORS))
+					continue;
+
+				if(!TWorldToViewCoord(ntid, WIDTH, HEIGHT))
+					continue;
+				x0 = r1;
+				y0 = r2;
+
+				if(!TWorldToViewCoord(lntid, WIDTH, HEIGHT))
+					continue;
+				x1 = r1;
+				y1 = r2;
+
+				//if( (x0 < 0) || (x0 > WIDTH) || (y0 < 0) || (y0 > HEIGHT) || (x1 < 0) || (x1 > WIDTH) || (y1 < 0) || (y1 > HEIGHT) )
+					//continue;
+
+				HudDrawLine(x0, y0, x1, y1);
+			}
+		}
+
+		SetHudSize(WIDTH, 1, false);
+		HudMessage(s:"A"; HUDMSG_PLAIN|HUDMSG_LAYER_UNDERHUD|HUDMSG_ALPHA, 0, CR_UNTRANSLATED, 0.1, 0.0, 0.03, 0.5);
+		HudMessage(s:"A"; HUDMSG_PLAIN|HUDMSG_LAYER_UNDERHUD|HUDMSG_ALPHA, 0, CR_UNTRANSLATED, fixed(WIDTH) + 0.1, 0.0, 0.03, 0.5);
+
+		SetHudSize(WIDTH, HEIGHT, false);
+		HudMessage(a:nodeLinkBuf; HUDMSG_PLAIN|HUDMSG_LAYER_UNDERHUD|HUDMSG_ALPHA, 0, CR_UNTRANSLATED, 0.1, 0.1, 0.03, 0.5);
+
+		Delay(1);
+	}
+}
+
 Script "TDB_DumpHeap"
 {
 	bcs::allocDump();
