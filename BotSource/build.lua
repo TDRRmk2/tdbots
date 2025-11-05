@@ -86,8 +86,11 @@ if InvokeProgram(BCS_COMPILER, 'headers/TDBots.h.bcs headers/TDBots.o') then
     os.remove('headers/TDBots.o')
 end
 
-print('Compiling Doom support module...')
+print('Compiling IWAD support modules...')
 InvokeProgram(BCS_COMPILER, '-I headers/ BCS/IWADSupport/TDB_Doom.bcs ../acs/TDB_Doom.o', true)
+InvokeProgram(BCS_COMPILER, '-I headers/ BCS/IWADSupport/TDB_Here.bcs ../acs/TDB_Here.o', true)
+InvokeProgram(BCS_COMPILER, '-I headers/ BCS/IWADSupport/TDB_Hexn.bcs ../acs/TDB_Hexn.o', true)
+InvokeProgram(BCS_COMPILER, '-I headers/ BCS/IWADSupport/TDB_Stri.bcs ../acs/TDB_Stri.o', true)
 
 print('Preprocessing DECOM4...')
 InvokeProgram('m4', m4Args .. 'DECOM4.dec > ../DECORATE.tdb', true)

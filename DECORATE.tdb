@@ -432,11 +432,11 @@ Actor TDBots_NodeStudio_Editor : Weapon
 		TNT1 A 0 A_JumpIfInventory("TDB_NS_Zoom",1,"Zoom")
 		Loop
 	Zoom:
-		TNT1 A 1 ACS_NamedExecuteWithResult("TDBots_NodeStudio_Save",0)
+		TNT1 A 1 ACS_NamedExecuteAlways("TDBots_NodeStudio_Save",0)
 		TNT1 A 0 A_JumpIfInventory("TDB_NS_Zoom",1,"ZR_Done")
 		Goto Ready
 	Reload:
-		TNT1 A 1 ACS_NamedExecuteWithResult("TDBots_NodeStudio_Help",0)
+		TNT1 A 1 ACS_NamedExecuteAlways("TDBots_NodeStudio_Help",0)
 		TNT1 A 0 A_JumpIfInventory("TDB_NS_Reload",1,"ZR_Done")
 		Goto Ready
 	Fire:
@@ -445,8 +445,7 @@ Actor TDBots_NodeStudio_Editor : Weapon
 		TNT1 A 0 A_Refire("Done")
 		Goto Ready
 	AltFire:
-		TNT1 A 0
-		TNT1 A 1 A_FireBullets(0,0,1,0,"TDBots_NodeStudio_DeleteMarker",FLAGS)
+		TNT1 A 1 ACS_NamedExecuteAlways("TDBots_NodeStudio_Delete",0)
 		TNT1 A 0 A_Refire("Done")
 		Goto Ready
 	Done:
@@ -484,57 +483,11 @@ Actor TDBots_NodeStudio_Node : TDBots_NodeStudio_Marker
 	-CLIENTSIDEONLY
 	states
 	{
+	Spawn:
 	Melee:
-	Spawn:
-		TNT1 A 0 NoDelay A_FaceTarget
-		TNT1 A 0 ACS_NamedExecuteWithResult("TDBots_NodeStudio_PlaceNode",0)
+		TNT1 A 0
+		TNT1 A 0 ACS_NamedExecuteAlways("TDBots_NodeStudio_PlaceNode",0)
 		TBND A 2 BRIGHT
-		Stop
-	}
-}
-
-Actor TDBots_NodeStudio_DeleteMarker : TDBots_NodeStudio_Node
-{
-	states
-	{
-	Melee:
-	Spawn:
-		TNT1 A 0 NoDelay ACS_NamedExecuteWithResult("TDBots_NodeStudio_Delete",0)
-		TBND A 2 BRIGHT
-		Stop
-	}
-}
-
-Actor TDBots_NodeStudio_FakeNode
-{
-	Scale 3.0
-	states
-	{
-	Spawn:
-		TNT1 AA 0 A_Stop
-		TBND B -1 BRIGHT
-		Stop
-	}
-}
-
-Actor TDBots_NodeStudio_FakeJumpNode : TDBots_NodeStudio_FakeNode
-{
-	states
-	{
-	Spawn:
-		TNT1 AA 0 A_Stop
-		TBND C -1 BRIGHT
-		Stop
-	}
-}
-
-Actor TDBots_NodeStudio_FakePreciseNode : TDBots_NodeStudio_FakeNode
-{
-	states
-	{
-	Spawn:
-		TNT1 AA 0 A_Stop
-		TBND D -1 BRIGHT
 		Stop
 	}
 }

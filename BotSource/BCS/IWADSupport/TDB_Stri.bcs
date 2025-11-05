@@ -1,0 +1,27 @@
+#library "TDB_Stri"
+#import "zcommon.bcs"
+#include "TDBots.h.bcs"
+
+Script "TDB_Strife_Init_Weapons" OPEN
+{
+    Delay(1);
+
+    TDB_Weapon_New("PunchDagger", 0, TDB_CW_MELEE);
+    TDB_Weapon_New("StrifeCrossbow", 100);
+    TDB_Weapon_New("Shotgun", 250);
+    TDB_Weapon_New("SuperShotgun", 500);
+    TDB_Weapon_New("Chaingun", 500);
+    TDB_Weapon_New("RocketLauncher", 1000, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_New("PlasmaRifle", 1000, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("BFG9000", 2000, TDB_CW_PROJECTILE);
+
+    TDB_Weapon_Pri("PunchDagger",       "",             0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("Chainsaw",          "",             0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("Pistol",            "Clip",         1, 0.0, 128.0, 512.0);
+    TDB_Weapon_Pri("Shotgun",           "Shell",        1, 0.0, 128.0, 512.0);
+    TDB_Weapon_Pri("SuperShotgun",      "Shell",        2, 0.0, 64.0, 128.0);
+    TDB_Weapon_Pri("Chaingun",          "Clip",         2, 0.0, 128.0, 512.0);
+    TDB_Weapon_Pri("RocketLauncher",    "RocketAmmo",   0, 20.0, 128.0, 512.0, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_Pri("PlasmaRifle",       "Cell",         1, 25.0, 0.0, 64.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("BFG9000",           "Cell",         40, 25.0, 0.0, 64.0, TDB_CW_PROJECTILE);
+}

@@ -1,0 +1,38 @@
+#library "TDB_Hexn"
+#import "zcommon.bcs"
+#include "TDBots.h.bcs"
+
+Script "TDB_Hexen_Init_Weapons" OPEN
+{
+    Delay(1);
+
+    TDB_Weapon_New("CWeapMace", 0, TDB_CW_MELEE);
+    TDB_Weapon_New("CWeapStaff", 250, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("CWeapFlame", 500, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("CWeapWraithverge", 1000, TDB_CW_PROJECTILE);
+
+    TDB_Weapon_New("FWeapFist", 0, TDB_CW_MELEE);
+    TDB_Weapon_New("FWeapAxe", 250, TDB_CW_MELEE);
+    TDB_Weapon_New("FWeapHammer", 500, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_New("FWeapQuietus", 1000, TDB_CW_MELEE);
+
+    TDB_Weapon_New("MWeapWand", 0, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("MWeapFrost", 250, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("MWeapLightning", 500, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("MWeapBloodscourge", 1000, TDB_CW_PROJECTILE);
+
+    TDB_Weapon_Pri("CWeapMace",         "",         0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("CWeapStaff",        "Mana1",    1, 22.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("CWeapFlame",        "Mana2",    4, 200.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("CWeapWraithverge",  "Mana1",    18, 30.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+
+    TDB_Weapon_Pri("FWeapFist",         "",         0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("FWeapAxe",          "Mana1",    2, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("FWeapHammer",       "Mana2",    3, 25.0, 128.0, 512.0, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_Pri("FWeapQuietus",      "Mana1",    1, 0.0, 0.0, 256.0, TDB_CW_MELEE);
+
+    TDB_Weapon_Pri("MWeapWand",         "",         0, 184.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("MWeapFrost",        "Mana1",    3, 25.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("MWeapLightning",    "Mana2",    5, 25.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("MWeapBloodscourge", "Mana1",    20, 17.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+}

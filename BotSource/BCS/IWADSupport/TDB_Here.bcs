@@ -1,0 +1,26 @@
+#library "TDB_Here"
+#import "zcommon.bcs"
+#include "TDBots.h.bcs"
+
+Script "TDB_Heretic_Init_Weapons" OPEN
+{
+    Delay(1);
+
+    TDB_Weapon_New("Staff", 0, TDB_CW_MELEE);
+    TDB_Weapon_New("Gauntlets", 0, TDB_CW_MELEE);
+    TDB_Weapon_New("GoldWand", 100);
+    TDB_Weapon_New("Crossbow", 250, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("Blaster", 500);
+    TDB_Weapon_New("SkullRod", 2000, TDB_CW_PROJECTILE);
+    TDB_Weapon_New("PhoenixRod", 2000, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_New("Mace", 1000, TDB_CW_PROJECTILE);
+
+    TDB_Weapon_Pri("Staff",       "",               0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("Gauntlets",   "",               0, 0.0, 0.0, 64.0, TDB_CW_MELEE);
+    TDB_Weapon_Pri("GoldWand",    "GoldWandAmmo",   1, 0.0, 64.0, 512.0);
+    TDB_Weapon_Pri("Crossbow",    "CrossbowAmmo",   1, 30.0, 64.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("Blaster",     "BlasterAmmo",    1, 0.0, 128.0, 512.0);
+    TDB_Weapon_Pri("SkullRod",    "SkullRodAmmo",   1, 22.0, 0.0, 512.0, TDB_CW_PROJECTILE);
+    TDB_Weapon_Pri("PhoenixRod",  "PhoenixRodAmmo", 1, 20.0, 128.0, 64.0, TDB_CW_PROJECTILE|TDB_CW_EXPLOSIVE);
+    TDB_Weapon_Pri("Mace",        "MaceAmmo",       1, 20.0, 0.0, 256.0, TDB_CW_PROJECTILE);
+}
